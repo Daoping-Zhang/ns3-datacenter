@@ -32,6 +32,8 @@
 *.app
 
 ./build/
-./__pycache__/
+__pycache__/
 .lock*
 .waf*
+compile_commands.json
+.cache/
