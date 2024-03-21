@@ -1,4 +1,4 @@
-source config.sh
+source ./config.sh
 DIR=$(pwd)
 DUMP_DIR=$DIR/dump_sigcomm
 RESULTS_DIR=$DIR/results_sigcomm
@@ -54,7 +54,7 @@ RDMAREQRATE=2
 TCPREQRATE=2
 
 ############################################################################
-######### 
+#########
 tcpload=0
 tcpburst=1500000
 rdmaburst=0

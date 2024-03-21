@@ -1,4 +1,4 @@
-source config.sh
+source ./config.sh
 BUFFER_DIR="$NS3/examples/buffer-devel"
 echo "BUFFER_DIR=$NS3/examples/buffer-devel NS3=$NS3"
 DUMP_DIR="$BUFFER_DIR/dump_test"

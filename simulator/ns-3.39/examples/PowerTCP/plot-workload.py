@@ -14,9 +14,9 @@ import matplotlib.pyplot as plt
 import pylab
 from matplotlib.lines import Line2D
 
-NS3="/home/cyp0633/ns3-datacenter/simulator/ns-3.39/"
-plots_dir="/home/cyp0633/ns3-datacenter/simulator/ns-3.39/examples/PowerTCP/"
-plots_dir="/home/vamsi/Powertcp-NSDI/"
+results="./results_workload/"
+plots_dir="./plot_workload/"
+os.makedirs(plots_dir,exist_ok=True)
 
 # plots_dir="/home/vamsi/Powertcp-NSDI/"
 plt.rcParams.update({'font.size': 18})
@@ -35,8 +35,6 @@ algnames["DCTCP"]="DCTCP"
 #%%
 
 ########## WORKLOADS ##################
-
-results=NS3+"examples/PowerTCP/results_workload/"
 
 K=1000
 M=K*K
@@ -148,13 +146,13 @@ for load in ["0.2","0.6"]:
 
 
     fig.tight_layout()
-    fig.savefig(plots_dir+'workload/fct-'+load+'.pdf')
-    fig.savefig(plots_dir+'workload/fct-'+load+'.png')
+    fig.savefig(plots_dir+'fct-'+load+'.pdf')
+    fig.savefig(plots_dir+'fct-'+load+'.png')
 
 
 figlegend.tight_layout()
 figlegend.legend(handles=lenged_elements,loc=9,ncol=5, framealpha=0,fontsize=52)
-figlegend.savefig(plots_dir+'/workload/fct-legend.pdf')
+figlegend.savefig(plots_dir+'fct-legend.pdf')
 
 #%%
 # for load in ["0.2","0.6"]:
@@ -175,7 +173,7 @@ for alg in algs:
 
 figlegend.tight_layout()
 figlegend.legend(handles=lenged_elements,loc=9,ncol=5, framealpha=0,fontsize=52)
-figlegend.savefig(plots_dir+'/workload/all-legend.pdf')
+figlegend.savefig(plots_dir+'all-legend.pdf')
 
 #%%
 
@@ -225,8 +223,8 @@ ax.set_ylabel('99.9-pct FCT slowdown')
 # fig.savefig(plots_dir+'fct'+'.pdf')
 # ax.legend(framealpha=0)
 fig.tight_layout()
-fig.savefig(plots_dir+'workload/fct-shortLoad'+'.pdf')
-fig.savefig(plots_dir+'workload/fct-shortLoad'+'.png')
+fig.savefig(plots_dir+'fct-shortLoad'+'.pdf')
+fig.savefig(plots_dir+'fct-shortLoad'+'.png')
 
 #%%
 
@@ -280,8 +278,8 @@ ax.set_ylabel('99.9-pct FCT slowdown')
 # fig.savefig(plots_dir+'fct'+'.pdf')
 # ax.legend(framealpha=0)
 fig.tight_layout()
-fig.savefig(plots_dir+'workload/fct-longLoad'+'.pdf')
-fig.savefig(plots_dir+'workload/fct-longLoad'+'.png')
+fig.savefig(plots_dir+'fct-longLoad'+'.pdf')
+fig.savefig(plots_dir+'fct-longLoad'+'.png')
 
 
 #%%
@@ -337,8 +335,8 @@ for alg in algs:
 ax.set_xlabel('Request rate')
 ax.set_ylabel('99.9-pct FCT slowdown')
 fig.tight_layout()
-fig.savefig(plots_dir+'workload/fct-shortRate'+'.pdf')
-fig.savefig(plots_dir+'workload/fct-shortRate'+'.png')
+fig.savefig(plots_dir+'fct-shortRate'+'.pdf')
+fig.savefig(plots_dir+'fct-shortRate'+'.png')
 #%%
 
 # for alg in algs:
@@ -390,8 +388,8 @@ for alg in algs:
 ax.set_xlabel('Request rate')
 ax.set_ylabel('99.9-pct FCT slowdown')
 fig.tight_layout()
-fig.savefig(plots_dir+'workload/fct-longRate'+'.pdf')
-fig.savefig(plots_dir+'workload/fct-longRate'+'.png')
+fig.savefig(plots_dir+'fct-longRate'+'.pdf')
+fig.savefig(plots_dir+'fct-longRate'+'.png')
 #%%
 
 # for alg in algs:
@@ -446,8 +444,8 @@ for alg in algs:
 ax.set_xlabel('Request size (MB)')
 ax.set_ylabel('99.9-pct FCT slowdown')
 fig.tight_layout()
-fig.savefig(plots_dir+'workload/fct-shortBurst4'+'.pdf')
-fig.savefig(plots_dir+'workload/fct-shortBurst4'+'.png')
+fig.savefig(plots_dir+'fct-shortBurst4'+'.pdf')
+fig.savefig(plots_dir+'fct-shortBurst4'+'.png')
 #%%
 
 # for alg in algs:
@@ -501,8 +499,8 @@ for alg in algs:
 ax.set_xlabel('Request size (MB)')
 ax.set_ylabel('99.9-pct FCT slowdown')
 fig.tight_layout()
-fig.savefig(plots_dir+'workload/fct-longBurst4'+'.pdf')
-fig.savefig(plots_dir+'workload/fct-longBurst4'+'.png')
+fig.savefig(plots_dir+'fct-longBurst4'+'.pdf')
+fig.savefig(plots_dir+'fct-longBurst4'+'.png')
 
 
 #%%
@@ -547,8 +545,8 @@ for alg in algs:
     ax.plot(sortQlen[len(sortQlen)-1],1,marker=markers[alg],markersize=10,c=colors[alg],label=algnames[alg])
 
 fig.tight_layout()
-fig.savefig(plots_dir+'workload/buf-load'+'.pdf')
-fig.savefig(plots_dir+'workload/buf-load'+'.png')
+fig.savefig(plots_dir+'buf-load'+'.pdf')
+fig.savefig(plots_dir+'buf-load'+'.png')
 #%%
 
 
@@ -585,6 +583,6 @@ for alg in algs:
     cdfs[alg]=sortQlen
     cdfs["cdf"]=p
 fig.tight_layout()
-fig.savefig(plots_dir+'workload/buf-burst-16'+'.pdf')
-fig.savefig(plots_dir+'workload/buf-burst-16'+'.png')
+fig.savefig(plots_dir+'buf-burst-16'+'.pdf')
+fig.savefig(plots_dir+'buf-burst-16'+'.png')
 #%%

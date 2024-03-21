@@ -1,4 +1,4 @@
-source config.sh
+source ./config.sh
 DIR="$NS3/examples/ABM"
 DUMP_DIR="$DIR/dump_sigcomm"
 mkdir $DUMP_DIR
@@ -74,7 +74,7 @@ BURST_SIZE=$(python3 -c "print($BURST_SIZES*$BUFFER)")
 
 
 ################################################################
-# DT, ABM and IB under different Buffer Sizes. 
+# DT, ABM and IB under different Buffer Sizes.
 # Using Cubic and DCTCP, at 40% websearch load and incast workload at Burst size of 25% of initial buffer size and request rate = 2
 ###############################################################
 

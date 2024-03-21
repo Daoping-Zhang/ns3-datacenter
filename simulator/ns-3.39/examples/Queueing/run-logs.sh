@@ -1,4 +1,4 @@
-source config.sh
+source ./config.sh
 DIR="$NS3/examples/Queueing"
 DUMP_DIR="$DIR/dump_queueing"
 
@@ -41,7 +41,7 @@ RED_MAX=65
 N_PRIO=2
 
 ALPHAFILE="$DIR/alphas"
-CDFFILES=("$DIR/websearch.csv" "$DIR/hadoop.csv" "$DIR/datamining.csv") 
+CDFFILES=("$DIR/websearch.csv" "$DIR/hadoop.csv" "$DIR/datamining.csv")
 CDFNAMES=("WS" "HP" "DM")
 
 ALPHA_UPDATE_INT=1 # 1 RTT

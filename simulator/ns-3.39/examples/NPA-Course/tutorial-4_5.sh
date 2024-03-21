@@ -3,7 +3,7 @@
 # define VEGAS 2
 # define BBR 3
 
-source config.sh
+source ./config.sh
 DIR=$NS3/examples/NPA-Course
 TUT=/home/vamsi/src/phd/teaching/NPA-2023/tutorials/tutorial-4_5
 

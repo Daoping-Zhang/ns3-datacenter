@@ -1,4 +1,4 @@
-source config.sh
+source ./config.sh
 # NS3=/home/vamsi/High-Precision-Congestion-Control/simulation
 RES_DUMP=$NS3/examples/PowerTCP/dump_fairness
 RES_RESULTS=$NS3/examples/PowerTCP/results_fairness

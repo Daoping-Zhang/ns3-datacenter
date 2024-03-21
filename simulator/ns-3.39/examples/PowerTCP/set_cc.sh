@@ -1,4 +1,4 @@
-source config.sh
+source ./config.sh
 DIR=$NS3/examples/PowerTCP/
 VAR=$1
 VAL=$2

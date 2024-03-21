@@ -1,4 +1,4 @@
-source config.sh
+source ./config.sh
 DIR="$NS3/examples/ABM"
 DUMP_DIR="$DIR/dump_sigcomm"
 mkdir $DUMP_DIR
@@ -76,7 +76,7 @@ BURST_SIZES=0.25
 ################################################
 # Performance of Cubic and DCTCP
 # Comparing DT and ABM
-# All traffic is split across N_PRIO number of queues at each port. 
+# All traffic is split across N_PRIO number of queues at each port.
 ################################################
 
 for TCP in $CUBIC $DCTCP;do

@@ -1,4 +1,4 @@
-source config.sh
+source ./config.sh
 DIR=$(pwd)
 DUMP_DIR=$DIR/dump_sigcomm
 RESULTS_DIR=$DIR/results_sigcomm
@@ -146,7 +146,7 @@ for rdmaburst in ${BURST_SIZES[@]};do
 			(time ./waf --run "reverie-evaluation-sigcomm2023 --bufferalgIngress=$alg --bufferalgEgress=$alg --rdmacc=$RDMACC --powertcp=true --rdmaload=$rdmaload --rdmarequestSize=$rdmaburst --rdmaqueryRequestRate=2 --tcpload=$tcpload --tcpcc=$TCPCC --enableEcn=true --tcpqueryRequestRate=1 --tcprequestSize=$tcpburst --egressLossyShare=$egresslossyFrac --bufferModel=$BUFFERMODEL --gamma=$gamma --START_TIME=$START_TIME --END_TIME=$END_TIME --FLOW_LAUNCH_END_TIME=$FLOW_LAUNCH_END_TIME --buffersize=$BUFFERSIZE --fctOutFile=$FCTFILE --torOutFile=$TORFILE --alphasFile=$ALPHAFILE --pfcOutFile=$PFCFILE" > $DUMPFILE 2> $DUMPFILE)&
 			sleep 5
 		fi
-		
+
 		NUM=$(( $NUM+1  ))
 	done
 done

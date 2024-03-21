@@ -1,4 +1,4 @@
-source config.sh
+source ./config.sh
 DIR="$NS3/examples/ABM"
 DUMP_DIR="$DIR/dump_sigcomm"
 mkdir $DUMP_DIR

@@ -1,4 +1,4 @@
-source config.sh
+source ./config.sh
 DIR="$NS3/examples/ABM"
 DUMP_DIR="$DIR/dump_sigcomm"
 mkdir $DUMP_DIR
@@ -64,7 +64,7 @@ N=0
 # The idea is to observe how Cubic load effects DCTCP and PowerTCP even though they do not share queues. They do share the same buffer though.
 ##################################################################################
 
-# Total simulations =  12 
+# Total simulations =  12
 SERVERS=32
 LEAVES=2
 SPINES=2
@@ -96,7 +96,7 @@ for CUBICLOAD in 0.1 0.2 0.3 0.4 0.5 0.6;do
 done
 
 ##################################################################################
-# Performance of DCTCP, TIMELY and PowerTCP under Incast workload at different request sizes (burst size) and request rate of 2. 
+# Performance of DCTCP, TIMELY and PowerTCP under Incast workload at different request sizes (burst size) and request rate of 2.
 ##################################################################################
 
 # Total simulations = 30
@@ -131,7 +131,7 @@ for TCP in $DCTCP $TIMELY $POWERTCP;do
 done
 
 ##################################################################################
-# Cubic at various loads under different buffer management schemes 
+# Cubic at various loads under different buffer management schemes
 # DT, FAB, CS, IB and ABM.
 ##################################################################################
 

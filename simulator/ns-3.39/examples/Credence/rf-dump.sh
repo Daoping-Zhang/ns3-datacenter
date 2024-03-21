@@ -1,4 +1,4 @@
-source config.sh
+source ./config.sh
 DIR="$NS3/examples/Credence"
 LQD_DIR="$DIR/lqd-logs"
 # LQD_DIR="/home/vamsi/src/phd/codebase/ns3-datacenter-Old/simulator/ns-3.35/examples/Credence/lqd-logs"

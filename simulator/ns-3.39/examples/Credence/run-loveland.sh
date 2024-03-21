@@ -1,4 +1,4 @@
-source config.sh
+source ./config.sh
 DIR="$NS3/examples/Credence"
 LQD_DIR="$DIR/lqd-logs"
 DUMP_DIR="$DIR/dump_nsdi"

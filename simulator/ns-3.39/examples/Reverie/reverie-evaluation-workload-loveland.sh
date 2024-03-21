@@ -1,4 +1,4 @@
-source config.sh
+source ./config.sh
 DIR=$(pwd)
 DUMP_DIR=$DIR/dump_sigcomm
 RESULTS_DIR=$DIR/results_sigcomm
@@ -96,7 +96,7 @@ for egresslossyFrac in 0.6 0.4 0.2;do
 			BUFFERMODEL="sonic"
 		else
 			BUFFERMODEL="reverie"
-		fi		
+		fi
 		while [[ $(ps aux | grep reverie-evaluation-sigcomm2023-optimized | wc -l) -gt $N_CORES ]];do
 			sleep 30;
 			echo "waiting for cores, $N_CORES running..."

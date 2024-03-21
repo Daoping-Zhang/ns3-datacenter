@@ -1,4 +1,4 @@
-NS3=/home/vamsi/src/phd/ns3-datacenter/simulator/ns-3.35/
+source ./config.sh
 RES_DUMP=$NS3/examples/PowerTCP/dump_workload
 RES_RESULTS=$NS3/examples/PowerTCP/results_workload
 
@@ -50,7 +50,7 @@ for load in ${LOADS[@]};do
 		echo "evaluation-${algNames[$algorithm]}-$load-$req-$query.out $N"
 		N=$(( $N+1 ))
 		RESULT_FILE="$RES_DUMP/evaluation-${algNames[$algorithm]}-$load-$req-$query.out"
-		
+
 		cat $RESULT_FILE | grep 'FCT' | grep 'size' > $RES_RESULTS/result-${algNames[$algorithm]}-$load-$req-$query.fct
 		cat $RESULT_FILE | grep 'switch 0'| grep 'qlen' > $RES_RESULTS/result-${algNames[$algorithm]}-$load-$req-$query.buf
 	done
@@ -75,7 +75,7 @@ for req in ${REQ_RATE[@]};do
 		echo "evaluation-${algNames[$algorithm]}-$load-$req-$query.out $N"
 		N=$(( $N+1 ))
 		RESULT_FILE="$RES_DUMP/evaluation-${algNames[$algorithm]}-$load-$req-$query.out"
-		
+
 		cat $RESULT_FILE | grep 'FCT' | grep 'size' > $RES_RESULTS/result-${algNames[$algorithm]}-$load-$req-$query.fct
 		cat $RESULT_FILE | grep 'switch 0'| grep 'qlen' > $RES_RESULTS/result-${algNames[$algorithm]}-$load-$req-$query.buf
 	done
@@ -100,7 +100,7 @@ for query in ${REQ_SIZE[@]};do
 		echo "evaluation-${algNames[$algorithm]}-$load-$req-$query.out $N"
 		N=$(( $N+1 ))
 		RESULT_FILE="$RES_DUMP/evaluation-${algNames[$algorithm]}-$load-$req-$query.out"
-		
+
 		cat $RESULT_FILE | grep 'FCT' | grep 'size' > $RES_RESULTS/result-${algNames[$algorithm]}-$load-$req-$query.fct
 		cat $RESULT_FILE | grep 'switch 0'| grep 'qlen' > $RES_RESULTS/result-${algNames[$algorithm]}-$load-$req-$query.buf
 	done

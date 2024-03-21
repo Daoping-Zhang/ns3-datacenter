@@ -14,9 +14,9 @@ import matplotlib.pyplot as plt
 import pylab
 from matplotlib.lines import Line2D
 
-NS3="/home/cyp0633/ns3-datacenter/simulator/ns-3.39/"
-plots_dir="/home/cyp0633/ns3-datacenter/simulator/ns-3.39/examples/PowerTCP/"
-results=NS3+"examples/PowerTCP/results_burst/"
+results="./results_burst/"
+plots_dir="./plot_burst/"
+os.makedirs(plots_dir,exist_ok=True)
 
 # plots_dir="/home/vamsi/Powertcp-NSDI/"
 plt.rcParams.update({'font.size': 18})
@@ -79,8 +79,8 @@ for alg in algs:
     # ax1.legend(loc=3)
     # fig.legend(loc=2,ncol=2,framealpha=0,borderpad=-0.1)
     fig.tight_layout()
-    fig.savefig(plots_dir+'burst/'+alg+'.pdf')
-    fig.savefig(plots_dir+'burst/'+alg+'.png')
+    fig.savefig(plots_dir+alg+'.pdf')
+    fig.savefig(plots_dir+alg+'.png')
 
     fig1,ax2 = plt.subplots(1,1)
     # fig.suptitle(alg)
@@ -103,8 +103,8 @@ for alg in algs:
     ax3.set_ylim(0,2)
     ax3.plot(df["time"],df["power"],c='g',label="NormPower",lw=2)
     fig1.tight_layout()
-    fig1.savefig(plots_dir+'burst/'+alg+'-power.pdf')
-    fig1.savefig(plots_dir+'burst/'+alg+'-power.png')
+    fig1.savefig(plots_dir+alg+'-power.pdf')
+    fig1.savefig(plots_dir+alg+'-power.png')
 
 
 figlegend.tight_layout()

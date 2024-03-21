@@ -1,4 +1,4 @@
-source config.sh
+source ./config.sh
 configFile=$NS3/examples/PowerTCP/config-fairness.txt
 RES_DUMP=$NS3/examples/PowerTCP/dump_fairness
 
@@ -33,7 +33,7 @@ for algorithm in ${algs[@]};do
 	else
 		wien=false
 	fi
-	
+
 	if [[ ${algNames[$algorithm]} == "powerDelay" ]];then
 		delay=true
 	else

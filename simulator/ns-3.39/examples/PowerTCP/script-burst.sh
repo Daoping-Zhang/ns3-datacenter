@@ -1,4 +1,4 @@
-source config.sh
+source ./config.sh
 configFile=$NS3/examples/PowerTCP/config-burst.txt
 RES_DUMP=$NS3/examples/PowerTCP/dump_burst
 
@@ -21,7 +21,7 @@ cd $NS3
 windowall=$1
 if [[ $windowall == "yes" ]];then
 	nowindow="no"
-else 
+else
 	if [[ $2 == "yes" ]];then
 	nowindow="yes"
 	windowall="no"
@@ -42,7 +42,7 @@ for algorithm in ${algs[@]};do
 	else
 		wien=false
 	fi
-	
+
 	if [[ ${algNames[$algorithm]} == "powerDelay" ]];then
 		delay=true
 	else
@@ -54,7 +54,7 @@ for algorithm in ${algs[@]};do
 	else
 		window=1
 	fi
-	
+
 	if [[ $windowall == "yes" ]];then
 		window=1
 	fi

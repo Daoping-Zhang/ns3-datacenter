@@ -1,4 +1,4 @@
-source config.sh
+source ./config.sh
 RES_DUMP=$NS3/examples/PowerTCP/dump_workload
 RES_RESULTS=$NS3/examples/PowerTCP/results_workload
 configFile=$NS3/examples/PowerTCP/config-burst.txt #config-burst works just fine with workload as well. Flows are created from within evaluation-workload.cc
@@ -50,7 +50,7 @@ for load in ${LOADS[@]};do
 		else
 			wien=false
 		fi
-		
+
 		if [[ ${algNames[$algorithm]} == "powerDelay" ]];then
 			delay=true
 		else
@@ -75,7 +75,7 @@ for load in ${LOADS[@]};do
 		RESULT_FILE="$RES_DUMP/evaluation-${algNames[$algorithm]}-$load-$req-$query.out"
 		# echo "time ./waf --run "evaluation-fairness --algorithm=${CCMODE[$algorithm]} --wien=$wien --delayWien=$delay --windowCheck=$window""
 		time ./waf --run "powertcp-evaluation-workload --conf=$configFile --algorithm=${CCMODE[$algorithm]} --wien=$wien --delayWien=$delay --windowCheck=$window --queryRequestRate=$req --load=$load --START_TIME=$START --END_TIME=$END --FLOW_LAUNCH_END_TIME=$FLOWEND --incast=10 --cdfFileName=$cdf --request=$query" > $RESULT_FILE  2> $RESULT_FILE &
-		
+
 		# cat $RESULT_FILE | grep 'FCT' | grep 'flowSize' > $RES_RESULTS/result-${algNames[$algorithm]}-$load-$req.fct
 		# cat $RESULT_FILE | grep 'switch 0' | grep 'total' > $RES_RESULTS/result-${algNames[$algorithm]}-$load-$req.buf
 	done
@@ -103,7 +103,7 @@ for req in ${REQ_RATE[@]};do
 		else
 			wien=false
 		fi
-		
+
 		if [[ ${algNames[$algorithm]} == "powerDelay" ]];then
 			delay=true
 		else
@@ -128,7 +128,7 @@ for req in ${REQ_RATE[@]};do
 		RESULT_FILE="$RES_DUMP/evaluation-${algNames[$algorithm]}-$load-$req-$query.out"
 		# echo "time ./waf --run "evaluation-fairness --algorithm=${CCMODE[$algorithm]} --wien=$wien --delayWien=$delay --windowCheck=$window""
 		time ./waf --run "powertcp-evaluation-workload --conf=$configFile --algorithm=${CCMODE[$algorithm]} --wien=$wien --delayWien=$delay --windowCheck=$window --queryRequestRate=$req --load=$load --START_TIME=$START --END_TIME=$END --FLOW_LAUNCH_END_TIME=$FLOWEND --incast=10 --cdfFileName=$cdf --request=$query" > $RESULT_FILE  2> $RESULT_FILE &
-		
+
 		# cat $RESULT_FILE | grep 'FCT' | grep 'flowSize' > $RES_RESULTS/result-${algNames[$algorithm]}-$load-$req.fct
 		# cat $RESULT_FILE | grep 'switch 0' | grep 'total' > $RES_RESULTS/result-${algNames[$algorithm]}-$load-$req.buf
 	done
@@ -155,7 +155,7 @@ for query in ${REQ_SIZE[@]};do
 		else
 			wien=false
 		fi
-		
+
 		if [[ ${algNames[$algorithm]} == "powerDelay" ]];then
 			delay=true
 		else
@@ -180,7 +180,7 @@ for query in ${REQ_SIZE[@]};do
 		RESULT_FILE="$RES_DUMP/evaluation-${algNames[$algorithm]}-$load-$req-$query.out"
 		# echo "time ./waf --run "evaluation-fairness --algorithm=${CCMODE[$algorithm]} --wien=$wien --delayWien=$delay --windowCheck=$window""
 		time ./waf --run "evaluation-workload --conf=$configFile --algorithm=${CCMODE[$algorithm]} --wien=$wien --delayWien=$delay --windowCheck=$window --queryRequestRate=$req --load=$load --START_TIME=$START --END_TIME=$END --FLOW_LAUNCH_END_TIME=$FLOWEND --incast=10 --cdfFileName=$cdf --request=$query" > $RESULT_FILE  2> $RESULT_FILE &
-		
+
 		# cat $RESULT_FILE | grep 'FCT' | grep 'flowSize' > $RES_RESULTS/result-${algNames[$algorithm]}-$load-$req.fct
 		# cat $RESULT_FILE | grep 'switch 0' | grep 'total' > $RES_RESULTS/result-${algNames[$algorithm]}-$load-$req.buf
 	done

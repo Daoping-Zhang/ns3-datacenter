@@ -1,4 +1,4 @@
-source config.sh
+source ./config.sh
 DIR=$(pwd)
 DUMP_DIR=$DIR/dump_sigcomm
 RESULTS_DIR=$DIR/results_sigcomm
