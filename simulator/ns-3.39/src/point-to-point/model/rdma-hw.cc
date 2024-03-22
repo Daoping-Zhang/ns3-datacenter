@@ -211,7 +211,9 @@ RdmaHw::Setup(QpCompleteCallback cb)
     {
         Ptr<QbbNetDevice> dev = m_nic[i].dev;
         if (dev == NULL)
+        {
             continue;
+        }
         // share data with NIC
         dev->m_rdmaEQ->m_qpGrp = m_nic[i].qpGrp;
         // setup callback
@@ -229,7 +231,7 @@ uint32_t
 RdmaHw::GetNicIdxOfQp(Ptr<RdmaQueuePair> qp)
 {
     auto& v = m_rtTable[qp->dip.Get()];
-    if (v.size() > 0)
+    if (!v.empty())
     {
         return v[qp->GetHash() % v.size()];
     }
@@ -251,7 +253,9 @@ RdmaHw::GetQp(uint32_t dip, uint16_t sport, uint16_t pg)
     uint64_t key = GetQpKey(dip, sport, pg);
     auto it = m_qpMap.find(key);
     if (it != m_qpMap.end())
+    {
         return it->second;
+    }
     return NULL;
 }
 
@@ -301,7 +305,9 @@ RdmaHw::AddQueuePair(uint64_t size,
     }
     DataRate m_bps = m_nic[nic_idx].dev->GetDataRate();
     if (win)
+    {
         qp->SetWin(m_bps.GetBitRate() * 1 * baseRtt * 1e-9 / 8);
+    }
     qp->m_rate = m_bps;
     qp->m_max_rate = m_bps;
     if (m_cc_mode == 1)
@@ -314,7 +320,9 @@ RdmaHw::AddQueuePair(uint64_t size,
         if (m_multipleRate)
         {
             for (uint32_t i = 0; i < IntHeader::maxHop; i++)
+            {
                 qp->hp.hopState[i].Rc = m_bps;
+            }
         }
     }
     else if (m_cc_mode == 7)
@@ -349,7 +357,9 @@ RdmaHw::GetRxQp(uint32_t sip,
     uint64_t key = ((uint64_t)dip << 32) | ((uint64_t)pg << 16) | (uint64_t)dport;
     auto it = m_rxQpMap.find(key);
     if (it != m_rxQpMap.end())
+    {
         return it->second;
+    }
     if (create)
     {
         // create new rx qp
@@ -371,7 +381,7 @@ uint32_t
 RdmaHw::GetNicIdxOfRxQp(Ptr<RdmaRxQueuePair> q)
 {
     auto& v = m_rtTable[q->dip];
-    if (v.size() > 0)
+    if (!v.empty())
     {
         return v[q->GetHash() % v.size()];
     }
@@ -416,7 +426,9 @@ RdmaHw::ReceiveUdp(Ptr<Packet> p, CustomHeader& ch)
         seqh.SetDport(ch.udp.sport);
         seqh.SetIntHeader(ch.udp.ih);
         if (ecnbits)
+        {
             seqh.SetCnp();
+        }
 
         Ptr<Packet> newp =
             Create<Packet>(std::max(60 - 14 - 20 - (int)seqh.GetSerializedSize(), 0));
@@ -462,7 +474,9 @@ RdmaHw::ReceiveCnp(Ptr<Packet> p, CustomHeader& ch)
     // get qp
     Ptr<RdmaQueuePair> qp = GetQp(ch.sip, udpport, qIndex);
     if (qp == NULL)
+    {
         std::cout << "ERROR: QCN NIC cannot find the flow\n";
+    }
     // get nic
     uint32_t nic_idx = GetNicIdxOfQp(qp);
     Ptr<QbbNetDevice> dev = m_nic[nic_idx].dev;
@@ -480,7 +494,9 @@ RdmaHw::ReceiveCnp(Ptr<Packet> p, CustomHeader& ch)
             if (m_multipleRate)
             {
                 for (uint32_t i = 0; i < IntHeader::maxHop; i++)
+                {
                     qp->hp.hopState[i].Rc = dev->GetDataRate();
+                }
             }
         }
         else if (m_cc_mode == 7)
@@ -515,7 +531,9 @@ RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader& ch)
     uint32_t nic_idx = GetNicIdxOfQp(qp);
     Ptr<QbbNetDevice> dev = m_nic[nic_idx].dev;
     if (m_ack_interval == 0)
+    {
         std::cout << "ERROR: shouldn't receive ack\n";
+    }
     else
     {
         if (!m_backto0)
@@ -532,8 +550,10 @@ RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader& ch)
             QpComplete(qp);
         }
     }
-    if (ch.l3Prot == 0xFD) // NACK
+    if (ch.l3Prot == 0xFD)
+    { // NACK
         RecoverQueue(qp);
+    }
 
     // handle cnp
     if (cnp)
@@ -622,7 +642,9 @@ RdmaHw::ReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size)
             return 2;
         }
         else
+        {
             return 4;
+        }
     }
     else
     {
@@ -707,7 +729,9 @@ RdmaHw::RedistributeQp()
     for (uint32_t i = 0; i < m_nic.size(); i++)
     {
         if (m_nic[i].dev == NULL)
+        {
             continue;
+        }
         m_nic[i].qpGrp->Clear();
     }
 
@@ -727,7 +751,9 @@ RdmaHw::GetNxtPacket(Ptr<RdmaQueuePair> qp)
 {
     uint32_t payload_size = qp->GetBytesLeft();
     if (m_mtu < payload_size)
+    {
         payload_size = m_mtu;
+    }
     Ptr<Packet> p = Create<Packet>(payload_size);
     uint32_t sentBytes = qp->m_size - qp->GetBytesLeft();
     uint32_t nic_idx = GetNicIdxOfQp(qp);
@@ -792,9 +818,13 @@ RdmaHw::UpdateNextAvail(Ptr<RdmaQueuePair> qp, Time interframeGap, uint32_t pkt_
 {
     Time sendingTime;
     if (m_rateBound)
+    {
         sendingTime = interframeGap + qp->m_rate.CalculateBytesTxTime(pkt_size);
+    }
     else
+    {
         sendingTime = interframeGap + qp->m_max_rate.CalculateBytesTxTime(pkt_size);
+    }
     qp->m_nextAvail = Simulator::Now() + sendingTime;
 }
 
@@ -891,10 +921,14 @@ RdmaHw::CheckRateDecreaseMlx(Ptr<RdmaQueuePair> q)
         if (!m_EcnClampTgtRate)
         {
             if (q->mlx.m_rpTimeStage == 0)
+            {
                 clamp = false;
+            }
         }
         if (clamp)
+        {
             q->mlx.m_targetRate = q->m_rate;
+        }
         q->m_rate = std::max(m_minRate, q->m_rate * (1 - q->mlx.m_alpha / 2));
         // reset rate increase related things
         q->mlx.m_rpTimeStage = 0;
@@ -989,7 +1023,9 @@ RdmaHw::ActiveIncreaseMlx(Ptr<RdmaQueuePair> q)
     // increate rate
     q->mlx.m_targetRate += m_rai;
     if (q->mlx.m_targetRate > dev->GetDataRate())
+    {
         q->mlx.m_targetRate = dev->GetDataRate();
+    }
     q->m_rate = (q->m_rate / 2) + (q->mlx.m_targetRate / 2);
 #if PRINT_LOG
     printf("(%.3lf %.3lf)\n",
@@ -1017,7 +1053,9 @@ RdmaHw::HyperIncreaseMlx(Ptr<RdmaQueuePair> q)
     // increate rate
     q->mlx.m_targetRate += m_rhai;
     if (q->mlx.m_targetRate > dev->GetDataRate())
+    {
         q->mlx.m_targetRate = dev->GetDataRate();
+    }
     q->m_rate = (q->m_rate / 2) + (q->mlx.m_targetRate / 2);
 #if PRINT_LOG
     printf("(%.3lf %.3lf)\n",
@@ -1041,14 +1079,20 @@ RdmaHw::HandleAckHp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
             UpdateRatePower(qp, p, ch, false);
         }
         else
+        {
             UpdateRateHp(qp, p, ch, false);
+        }
     }
     else
     { // do fast react
         if (PowerTCPEnabled)
+        {
             FastReactPower(qp, p, ch);
+        }
         else
+        {
             FastReactHp(qp, p, ch);
+        }
     }
 }
 
@@ -1056,7 +1100,7 @@ void
 RdmaHw::UpdateRateHp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, bool fast_react)
 {
     uint32_t next_seq = qp->snd_nxt;
-    bool print = !fast_react || true;
+    bool print = true;
 
     if (qp->hp.m_lastUpdateSeq == 0)
     { // first RTT
@@ -1066,7 +1110,9 @@ RdmaHw::UpdateRateHp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, boo
         IntHeader& ih = ch.ack.ih;
         NS_ASSERT(ih.nhop <= IntHeader::maxHop);
         for (uint32_t i = 0; i < ih.nhop; i++)
+        {
             qp->hp.hop[i] = ih.hop[i];
+        }
 #if PRINT_LOG
         if (print)
         {
@@ -1113,14 +1159,17 @@ RdmaHw::UpdateRateHp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, boo
             // check each hop
             double U = 0;
             uint64_t dt = 0;
-            bool updated[IntHeader::maxHop] = {false}, updated_any = false;
+            bool updated[IntHeader::maxHop] = {false};
+            bool updated_any = false;
             NS_ASSERT(ih.nhop <= IntHeader::maxHop);
             for (uint32_t i = 0; i < ih.nhop; i++)
             {
                 if (m_sampleFeedback)
                 {
                     if (ih.hop[i].GetQlen() == 0 and fast_react)
+                    {
                         continue;
+                    }
                 }
                 updated[i] = updated_any = true;
 #if PRINT_LOG
@@ -1159,7 +1208,9 @@ RdmaHw::UpdateRateHp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, boo
                 {
                     // for per hop (per hop R)
                     if (tau > qp->m_baseRtt)
+                    {
                         tau = qp->m_baseRtt;
+                    }
                     qp->hp.hopState[i].u =
                         (qp->hp.hopState[i].u * (qp->m_baseRtt - tau) + u * tau) /
                         double(qp->m_baseRtt);
@@ -1177,7 +1228,9 @@ RdmaHw::UpdateRateHp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, boo
                 if (updated_any)
                 {
                     if (dt > 1.0 * qp->m_baseRtt)
+                    {
                         dt = 1.0 * qp->m_baseRtt;
+                    }
 
                     qp->hp.u = (qp->hp.u * (qp->m_baseRtt - dt) + U * dt) / double(qp->m_baseRtt);
                     max_c = qp->hp.u / m_targetUtil;
@@ -1194,9 +1247,13 @@ RdmaHw::UpdateRateHp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, boo
                     }
 
                     if (new_rate < m_minRate)
+                    {
                         new_rate = m_minRate;
+                    }
                     if (new_rate > qp->m_max_rate)
+                    {
                         new_rate = qp->m_max_rate;
+                    }
 #if PRINT_LOG
                     if (print)
                         printf(" u=%.6lf U=%.3lf dt=%u max_c=%.3lf", qp->hp.u, U, dt, max_c);
@@ -1230,12 +1287,18 @@ RdmaHw::UpdateRateHp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, boo
                         }
                         // bound rate
                         if (new_rate_per_hop[i] < m_minRate)
+                        {
                             new_rate_per_hop[i] = m_minRate;
+                        }
                         if (new_rate_per_hop[i] > qp->m_max_rate)
+                        {
                             new_rate_per_hop[i] = qp->m_max_rate;
+                        }
                         // find min new_rate
                         if (new_rate_per_hop[i] < new_rate)
+                        {
                             new_rate = new_rate_per_hop[i];
+                        }
 #if PRINT_LOG
                         if (print)
                             printf(" [%u]u=%.6lf c=%.3lf", i, qp->hp.hopState[i].u, c);
@@ -1250,7 +1313,9 @@ RdmaHw::UpdateRateHp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, boo
                     else
                     {
                         if (qp->hp.hopState[i].Rc < new_rate)
+                        {
                             new_rate = qp->hp.hopState[i].Rc;
+                        }
                     }
                 }
 #if PRINT_LOG
@@ -1286,7 +1351,9 @@ RdmaHw::UpdateRateHp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, boo
         if (!fast_react)
         {
             if (next_seq > qp->hp.m_lastUpdateSeq)
+            {
                 qp->hp.m_lastUpdateSeq = next_seq; //+ rand() % 2 * m_mtu;
+            }
         }
     }
 }
@@ -1295,7 +1362,9 @@ void
 RdmaHw::FastReactHp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
 {
     if (m_fast_react)
+    {
         UpdateRateHp(qp, p, ch, true);
+    }
 }
 
 /**********************
@@ -1306,7 +1375,7 @@ void
 RdmaHw::UpdateRatePower(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, bool fast_react)
 {
     uint32_t next_seq = qp->snd_nxt;
-    bool print = !fast_react || true;
+    bool print = true;
     double prevRtt = qp->m_baseRtt;
     double prevCompletion = Simulator::Now().GetNanoSeconds();
     std::map<uint32_t, double>::iterator it = qp->rates.find(ch.ack.seq);
@@ -1333,7 +1402,9 @@ RdmaHw::UpdateRatePower(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, 
         IntHeader& ih = ch.ack.ih;
         NS_ASSERT(ih.nhop <= IntHeader::maxHop);
         for (uint32_t i = 0; i < ih.nhop; i++)
+        {
             qp->hp.hop[i] = ih.hop[i];
+        }
     }
     else
     {
@@ -1346,14 +1417,17 @@ RdmaHw::UpdateRatePower(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, 
             // check each hop
             double U = 0;
             uint64_t dt = 0;
-            bool updated[IntHeader::maxHop] = {false}, updated_any = false;
+            bool updated[IntHeader::maxHop] = {false};
+            bool updated_any = false;
             NS_ASSERT(ih.nhop <= IntHeader::maxHop);
             for (uint32_t i = 0; i < ih.nhop; i++)
             {
                 if (m_sampleFeedback)
                 {
                     if (ih.hop[i].GetQlen() == 0 and fast_react)
+                    {
                         continue;
+                    }
                 }
                 updated[i] = updated_any = true;
 
@@ -1380,7 +1454,9 @@ RdmaHw::UpdateRatePower(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, 
                     double A =
                         (double(prevRtt - qp->prevRtt) / (prevCompletion - qp->prevCompletion) + 1);
                     if (A < 0.5)
+                    {
                         A = 0.5;
+                    }
                     double power = (A) * (prevRtt);
                     double powerx = (power) / (1.05 * qp->m_baseRtt);
                     u = powerx; // theta-PowerTCP
@@ -1401,14 +1477,16 @@ RdmaHw::UpdateRatePower(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, 
             }
 
             DataRate new_rate;
-            int32_t new_incStage;
+            int32_t new_incStage = 0;
             DataRate new_rate_per_hop[IntHeader::maxHop];
             int32_t new_incStage_per_hop[IntHeader::maxHop];
 
             if (updated_any)
             {
                 if (dt > 1.0 * qp->m_baseRtt)
+                {
                     dt = 1.0 * qp->m_baseRtt;
+                }
 
                 if (U < 0)
                 {
@@ -1429,9 +1507,13 @@ RdmaHw::UpdateRatePower(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, 
                                 0.3 * qp->hp.m_curRate);
                 }
                 if (new_rate < m_minRate)
+                {
                     new_rate = m_minRate;
+                }
                 if (new_rate > qp->m_max_rate)
+                {
                     new_rate = qp->m_max_rate;
+                }
             }
             qp->prevRtt = prevRtt;
             qp->prevCompletion = Simulator::Now().GetNanoSeconds();
@@ -1451,7 +1533,9 @@ RdmaHw::UpdateRatePower(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, 
         if (!fast_react)
         {
             if (next_seq > qp->hp.m_lastUpdateSeq)
+            {
                 qp->hp.m_lastUpdateSeq = next_seq;
+            }
         }
     }
 }
@@ -1460,7 +1544,9 @@ void
 RdmaHw::FastReactPower(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
 {
     if (m_fast_react)
+    {
         UpdateRatePower(qp, p, ch, true);
+    }
 }
 
 /**********************
@@ -1521,7 +1607,9 @@ RdmaHw::UpdateRateTimely(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch,
         {
             c = 1 - m_tmly_beta * gradient;
             if (c < 0)
+            {
                 c = 0;
+            }
             inc = false;
         }
         if (inc)
@@ -1535,7 +1623,9 @@ RdmaHw::UpdateRateTimely(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch,
                 qp->m_rate = qp->tmly.m_curRate + m_rhai;
             }
             if (qp->m_rate > qp->m_max_rate)
+            {
                 qp->m_rate = qp->m_max_rate;
+            }
             if (!us)
             {
                 qp->tmly.m_curRate = qp->m_rate;
@@ -1626,7 +1716,9 @@ RdmaHw::HandleAckDctcp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
     if (qp->dctcp.m_caState == 1)
     {
         if (ack_seq > qp->dctcp.m_highSeq)
+        {
             qp->dctcp.m_caState = 0;
+        }
     }
 
     // check if need to reduce rate: ECN and not in CWR
@@ -1652,7 +1744,9 @@ RdmaHw::HandleAckDctcp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
 
     // additive inc
     if (qp->dctcp.m_caState == 0 && new_batch)
+    {
         qp->m_rate = std::min(qp->m_max_rate, qp->m_rate + m_dctcp_rai);
+    }
 }
 
 /*********************
@@ -1669,7 +1763,9 @@ RdmaHw::HandleAckHpPint(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
 {
     uint32_t ack_seq = ch.ack.seq;
     if (rand() % 65536 >= pint_smpl_thresh)
+    {
         return;
+    }
     // update rate
     if (ack_seq > qp->hpccPint.m_lastUpdateSeq)
     { // if full RTT feedback is ready, do full update
@@ -1710,9 +1806,13 @@ RdmaHw::UpdateRateHpPint(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch,
             new_incStage = qp->hpccPint.m_incStage + 1;
         }
         if (new_rate < m_minRate)
+        {
             new_rate = m_minRate;
+        }
         if (new_rate > qp->m_max_rate)
+        {
             new_rate = qp->m_max_rate;
+        }
         ChangeRate(qp, new_rate);
         if (!fast_react)
         {
@@ -1722,7 +1822,9 @@ RdmaHw::UpdateRateHpPint(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch,
         if (!fast_react)
         {
             if (next_seq > qp->hpccPint.m_lastUpdateSeq)
+            {
                 qp->hpccPint.m_lastUpdateSeq = next_seq; //+ rand() % 2 * m_mtu;
+            }
         }
     }
 }
