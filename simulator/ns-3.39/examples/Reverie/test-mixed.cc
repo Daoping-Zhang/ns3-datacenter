@@ -741,7 +741,7 @@ int main(int argc, char *argv[])
     // set int_multi
     IntHop::multi = int_multi;
     // IntHeader::mode
-    if (cc_mode == 7) // timely, use ts
+    if (cc_mode == 7 || cc_mode == 11) // timely or patched, use ts
         IntHeader::mode = IntHeader::TS;
     else if (cc_mode == 3) // hpcc, powertcp, use int
         IntHeader::mode = IntHeader::NORMAL;

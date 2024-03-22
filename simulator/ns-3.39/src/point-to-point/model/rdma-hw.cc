@@ -16,6 +16,8 @@
 #include <ns3/simulator.h>
 #include <ns3/udp-header.h>
 
+#include <cstdint>
+
 namespace ns3
 {
 
@@ -171,6 +173,17 @@ RdmaHw::GetTypeId(void)
                           UintegerValue(20000),
                           MakeUintegerAccessor(&RdmaHw::m_tmly_minRtt),
                           MakeUintegerChecker<uint64_t>())
+            // 50us RTTref comes from paper SQCC: Stable Queue Congestion Control
+            .AddAttribute("TimelyPatchedRttRef", //
+                          "RTTref of Patched TIMELY (ns)",
+                          UintegerValue(500000),
+                          MakeUintegerAccessor(&RdmaHw::m_ptmly_RttRef),
+                          MakeUintegerChecker<uint64_t>())
+            .AddAttribute("TimelyPatchedBeta",
+                          "Beta of PatchedTIMELY",
+                          DoubleValue(0.008),
+                          MakeDoubleAccessor(&RdmaHw::m_ptmly_beta),
+                          MakeDoubleChecker<double>())
             .AddAttribute("DctcpRateAI",
                           "DCTCP's Rate increment unit in AI period",
                           DataRateValue(DataRate("1000Mb/s")),
@@ -325,7 +338,7 @@ RdmaHw::AddQueuePair(uint64_t size,
             }
         }
     }
-    else if (m_cc_mode == 7)
+    else if (m_cc_mode == 7 || m_cc_mode == 11)
     {
         qp->tmly.m_curRate = m_bps;
     }
@@ -499,7 +512,7 @@ RdmaHw::ReceiveCnp(Ptr<Packet> p, CustomHeader& ch)
                 }
             }
         }
-        else if (m_cc_mode == 7)
+        else if (m_cc_mode == 7 || m_cc_mode == 11)
         {
             qp->tmly.m_curRate = dev->GetDataRate();
         }
@@ -564,21 +577,24 @@ RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader& ch)
         }
     }
 
-    if (m_cc_mode == 3)
+    switch (m_cc_mode)
     {
+    case CC_MODE::HPCC:
+        // Not only HPCC, but also PowerTCP!
         HandleAckHp(qp, p, ch);
-    }
-    else if (m_cc_mode == 7)
-    {
+        break;
+    case CC_MODE::TIMELY:
         HandleAckTimely(qp, p, ch);
-    }
-    else if (m_cc_mode == 8)
-    {
+        break;
+    case CC_MODE::DCTCP:
         HandleAckDctcp(qp, p, ch);
-    }
-    else if (m_cc_mode == 10)
-    {
+        break;
+    case CC_MODE::HPCC_PINT:
         HandleAckHpPint(qp, p, ch);
+        break;
+    case CC_MODE::PATCHED_TIMELY:
+        HandleAckPatchedTimely(qp, p, ch);
+        break;
     }
     // ACK may advance the on-the-fly window, allowing more packets to send
     dev->TriggerTransmit();
@@ -1615,6 +1631,7 @@ RdmaHw::UpdateRateTimely(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch,
         if (inc)
         {
             if (qp->tmly.m_incStage < 5)
+            // WTF does this mean?
             {
                 qp->m_rate = qp->tmly.m_curRate + m_rai;
             }
@@ -1660,6 +1677,102 @@ RdmaHw::UpdateRateTimely(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch,
 
 void
 RdmaHw::FastReactTimely(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
+{
+}
+
+/**********************
+ * Patched TIMELY
+ *********************/
+
+void
+RdmaHw::HandleAckPatchedTimely(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
+{
+    uint32_t ack_seq = ch.ack.seq;
+    // update rate
+    if (ack_seq > qp->tmly.m_lastUpdateSeq)
+    { // if full RTT feedback is ready, do full update
+        UpdateRatePatchedTimely(qp, p, ch, false);
+    }
+    else
+    { // do fast react
+        FastReactPatchedTimely(qp, p, ch);
+    }
+}
+
+void
+RdmaHw::UpdateRatePatchedTimely(Ptr<RdmaQueuePair> qp,
+                                Ptr<Packet> p,
+                                CustomHeader& ch,
+                                bool us) const
+{
+    uint32_t next_seq = qp->snd_nxt;
+    uint64_t rtt = Simulator::Now().GetTimeStep() - ch.ack.ih.ts;
+    bool print = !us;
+    if (qp->tmly.m_lastUpdateSeq != 0)
+    { // not first RTT
+        int64_t new_rtt_diff = (int64_t)rtt - (int64_t)qp->tmly.lastRtt;
+        double rtt_diff = (1 - m_tmly_alpha) * qp->tmly.rttDiff + m_tmly_alpha * new_rtt_diff;
+        double gradient = rtt_diff / m_tmly_minRtt;
+        int weight;
+        double error;
+#if PRINT_LOG
+        if (print)
+            printf("%lu node:%u rtt:%lu rttDiff:%.0lf gradient:%.3lf rate:%.3lf",
+                   Simulator::Now().GetTimeStep(),
+                   m_node->GetId(),
+                   rtt,
+                   rtt_diff,
+                   gradient,
+                   qp->tmly.m_curRate.GetBitRate() * 1e-9);
+#endif
+        if (rtt < m_tmly_TLow) // newRTT < Tlow
+        {
+            // rate = rate + rai
+            qp->m_rate = qp->tmly.m_curRate + m_rai;
+        }
+        else if (rtt > m_tmly_THigh) // newRTT > Thigh
+        {
+            //  rate = rate * (1 - beta(1 - Thigh / new_rtt))
+            qp->m_rate = qp->tmly.m_curRate * (1 - m_tmly_beta * (1 - (double)m_tmly_THigh / rtt));
+        }
+        else
+        {
+            // weight = w(rttGradient)
+            if (gradient <= -0.25)
+            {
+                weight = 0;
+            }
+            else if (gradient >= 0.25)
+            {
+                weight = 1;
+            }
+            else
+            {
+                weight = 2 * gradient + 0.5;
+            }
+            error = (rtt - m_ptmly_RttRef) * 1.0 / m_ptmly_RttRef;
+            qp->m_rate =
+                m_rai * (1 - weight) + qp->tmly.m_curRate * (1 - m_ptmly_beta * error * weight);
+        }
+        qp->tmly.m_curRate = std::max(m_minRate, std::min(qp->m_max_rate, qp->m_rate));
+        qp->tmly.rttDiff = rtt_diff;
+#if PRINT_LOG
+        if (print)
+        {
+            printf(" %c %.3lf\n", inc ? '^' : 'v', qp->m_rate.GetBitRate() * 1e-9);
+        }
+#endif
+    }
+    if (!us && next_seq > qp->tmly.m_lastUpdateSeq)
+    {
+        qp->tmly.m_lastUpdateSeq = next_seq;
+        // update
+        qp->tmly.lastRtt = rtt;
+    }
+}
+
+void
+RdmaHw::FastReactPatchedTimely(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
 {
 }
 
