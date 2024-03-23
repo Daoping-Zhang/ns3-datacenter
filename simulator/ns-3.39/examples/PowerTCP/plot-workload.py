@@ -23,14 +23,8 @@ plt.rcParams.update({'font.size': 18})
 
 
 
-algs=list(["dcqcn", "powerInt", "hpcc", "powerDelay", "timely", "dctcp"])
-algnames={}
-algnames["dcqcn"]="DCQCN"
-algnames["powerInt"]="PowerTCP"
-algnames["hpcc"]="HPCC"
-algnames["powerDelay"]=r'$\theta-PowerTCP$'
-algnames["timely"]="TIMELY"
-algnames["DCTCP"]="DCTCP"
+algs=list(["dcqcn", "powerInt", "hpcc", "powerDelay", "timely", "dctcp","patchedTimely"])
+algnames={"dcqcn":"DCQCN","powerInt":"PowerTCP","hpcc":"HPCC","powerDelay":r'$\theta-PowerTCP$',"timely":"TIMELY","DCTCP":"DCTCP","patchedTimely":"Patched TIMELY"}
 
 #%%
 
@@ -39,7 +33,7 @@ algnames["DCTCP"]="DCTCP"
 K=1000
 M=K*K
 # algs=list(["dcqcn", "powerInt", "hpcc", "powerDelay", "timely", "dctcp"])
-algs=list(["dcqcn", "powerInt", "hpcc", "powerDelay", "timely"])
+# algs=list(["dcqcn", "powerInt", "hpcc", "powerDelay", "timely"])
 # algs=list(["powerInt", "hpcc", "powerDelay"])
 
 algnames={}

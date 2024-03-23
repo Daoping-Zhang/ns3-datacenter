@@ -24,14 +24,6 @@ plt.rcParams.update({'font.size': 18})
 
 
 algs=list(["dcqcn", "powerInt", "hpcc", "powerDelay", "timely", "dctcp","patchedTimely"])
-# algnames={}
-# algnames["dcqcn"]="DCQCN"
-# algnames["powerInt"]="PowerTCP"
-# algnames["hpcc"]="HPCC"
-# algnames["powerDelay"]=r'$\theta-PowerTCP$'
-# algnames["timely"]="TIMELY"
-# algnames["DCTCP"]="DCTCP"
-# algnames[""]
 algnames={"dcqcn":"DCQCN","powerInt":"PowerTCP","hpcc":"HPCC","powerDelay":r'$\theta-PowerTCP$',"timely":"TIMELY","DCTCP":"DCTCP","patchedTimely":"Patched TIMELY"}
 
 

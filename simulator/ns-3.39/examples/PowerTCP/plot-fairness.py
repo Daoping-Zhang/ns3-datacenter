@@ -23,19 +23,12 @@ plt.rcParams.update({'font.size': 18})
 
 
 
-algs=list(["dcqcn", "powerInt", "hpcc", "powerDelay", "timely", "dctcp"])
-algnames={}
-algnames["dcqcn"]="DCQCN"
-algnames["powerInt"]="PowerTCP"
-algnames["hpcc"]="HPCC"
-algnames["powerDelay"]=r'$\theta-PowerTCP$'
-algnames["timely"]="TIMELY"
-algnames["DCTCP"]="DCTCP"
+algs=list(["dcqcn", "powerInt", "hpcc", "powerDelay", "timely", "dctcp","patchedTimely"])
+algnames={"dcqcn":"DCQCN","powerInt":"PowerTCP","hpcc":"HPCC","powerDelay":r'$\theta-PowerTCP$',"timely":"TIMELY","DCTCP":"DCTCP","patchedTimely":"Patched TIMELY"}
 
 
 ######## FAIRNESS #############
 
-algs=list(["dcqcn", "powerInt", "hpcc", "powerDelay", "timely", "dctcp"])
 # results=NS3+"examples/PowerTCP/results_fairness/"
 
 plt.rcParams.update({'font.size': 24})
