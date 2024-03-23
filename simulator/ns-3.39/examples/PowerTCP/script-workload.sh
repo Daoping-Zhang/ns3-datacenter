@@ -2,8 +2,10 @@ source ./config.sh
 RES_DUMP=$NS3/examples/PowerTCP/dump_workload
 RES_RESULTS=$NS3/examples/PowerTCP/results_workload
 configFile=$NS3/examples/PowerTCP/config-burst.txt #config-burst works just fine with workload as well. Flows are created from within evaluation-workload.cc
+MIX_DUMP=$NS3/examples/PowerTCP/mix
 
 mkdir $RES_DUMP
+mkdir $MIX_DUMP
 mkdir $RES_RESULTS
 algs=(0 1 2 3 4 5 6)
 

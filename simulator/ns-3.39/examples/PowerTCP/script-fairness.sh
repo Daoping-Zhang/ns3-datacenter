@@ -1,8 +1,10 @@
 source ./config.sh
 configFile=$NS3/examples/PowerTCP/config-fairness.txt
 RES_DUMP=$NS3/examples/PowerTCP/dump_fairness
+MIX_DUMP=$NS3/examples/PowerTCP/mix
 
 mkdir $RES_DUMP
+mkdir $MIX_DUMP
 
 algs=(0 1 2 3 4 5 6)
 
