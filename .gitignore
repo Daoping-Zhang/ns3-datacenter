@@ -37,3 +37,4 @@ __pycache__/
 .waf*
 compile_commands.json
 .cache/
+.vscode/

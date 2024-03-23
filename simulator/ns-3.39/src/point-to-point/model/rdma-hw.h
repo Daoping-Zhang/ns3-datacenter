@@ -41,8 +41,6 @@ class RdmaHw : public Object
     Ptr<Node> m_node;
     DataRate m_minRate; //< Min sending rate
     uint32_t m_mtu;
-    // 1 for Mellanox CNP, 3 for HPCC/PowerTCP/Theta-PowerTCP, 7 for TIMELY, 8 for DCTCP,
-    // 10 for HPCC-PINT, 11 for Patched TIMELY
     uint32_t m_cc_mode;
     double m_nack_interval;
     uint32_t m_chunk;
@@ -206,10 +204,8 @@ class RdmaHw : public Object
     void UpdateRateHpPint(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, bool fast_react);
 };
 
-    // 1 for Mellanox CNP, 3 for HPCC/PowerTCP/Theta-PowerTCP, 7 for TIMELY, 8 for DCTCP,
-    // 10 for HPCC-PINT, 11 for Patched TIMELY
-
-enum CC_MODE {
+enum CC_MODE
+{
     MLX_CNP = 1,
     HPCC = 3,
     POWERTCP = 3,

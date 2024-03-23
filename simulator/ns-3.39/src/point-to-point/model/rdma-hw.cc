@@ -323,11 +323,11 @@ RdmaHw::AddQueuePair(uint64_t size,
     }
     qp->m_rate = m_bps;
     qp->m_max_rate = m_bps;
-    if (m_cc_mode == 1)
+    if (m_cc_mode == CC_MODE::MLX_CNP)
     {
         qp->mlx.m_targetRate = m_bps;
     }
-    else if (m_cc_mode == 3)
+    else if (m_cc_mode == CC_MODE::HPCC)
     {
         qp->hp.m_curRate = m_bps;
         if (m_multipleRate)
@@ -338,11 +338,11 @@ RdmaHw::AddQueuePair(uint64_t size,
             }
         }
     }
-    else if (m_cc_mode == 7 || m_cc_mode == 11)
+    else if (m_cc_mode == CC_MODE::TIMELY || m_cc_mode == CC_MODE::PATCHED_TIMELY)
     {
         qp->tmly.m_curRate = m_bps;
     }
-    else if (m_cc_mode == 10)
+    else if (m_cc_mode == CC_MODE::HPCC_PINT)
     {
         qp->hpccPint.m_curRate = m_bps;
     }
@@ -497,11 +497,11 @@ RdmaHw::ReceiveCnp(Ptr<Packet> p, CustomHeader& ch)
     if (qp->m_rate == 0) // lazy initialization
     {
         qp->m_rate = dev->GetDataRate();
-        if (m_cc_mode == 1)
+        if (m_cc_mode == CC_MODE::MLX_CNP)
         {
             qp->mlx.m_targetRate = dev->GetDataRate();
         }
-        else if (m_cc_mode == 3)
+        else if (m_cc_mode == CC_MODE::HPCC)
         {
             qp->hp.m_curRate = dev->GetDataRate();
             if (m_multipleRate)
@@ -512,11 +512,11 @@ RdmaHw::ReceiveCnp(Ptr<Packet> p, CustomHeader& ch)
                 }
             }
         }
-        else if (m_cc_mode == 7 || m_cc_mode == 11)
+        else if (m_cc_mode == CC_MODE::TIMELY || m_cc_mode == CC_MODE::PATCHED_TIMELY)
         {
             qp->tmly.m_curRate = dev->GetDataRate();
         }
-        else if (m_cc_mode == 10)
+        else if (m_cc_mode == CC_MODE::HPCC_PINT)
         {
             qp->hpccPint.m_curRate = dev->GetDataRate();
         }
@@ -571,7 +571,7 @@ RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader& ch)
     // handle cnp
     if (cnp)
     {
-        if (m_cc_mode == 1)
+        if (m_cc_mode == CC_MODE::MLX_CNP)
         { // mlx version
             cnp_received_mlx(qp);
         }
@@ -594,6 +594,8 @@ RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader& ch)
         break;
     case CC_MODE::PATCHED_TIMELY:
         HandleAckPatchedTimely(qp, p, ch);
+        break;
+    default:
         break;
     }
     // ACK may advance the on-the-fly window, allowing more packets to send
@@ -702,7 +704,7 @@ void
 RdmaHw::QpComplete(Ptr<RdmaQueuePair> qp)
 {
     NS_ASSERT(!m_qpCompleteCallback.IsNull());
-    if (m_cc_mode == 1)
+    if (m_cc_mode == CC_MODE::MLX_CNP)
     {
         Simulator::Cancel(qp->mlx.m_eventUpdateAlpha);
         Simulator::Cancel(qp->mlx.m_eventDecreaseRate);

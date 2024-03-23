@@ -43,7 +43,7 @@ using namespace std;
 
 NS_LOG_COMPONENT_DEFINE("GENERIC_SIMULATION");
 
-uint32_t cc_mode = 1;
+uint32_t cc_mode = CC_MODE::POWERTCP;
 bool enable_qcn = true;
 uint32_t packet_payload_size = 1000, l2_chunk_size = 0, l2_ack_interval = 0;
 double pause_time = 5, simulator_stop_time = 3.01;
@@ -966,15 +966,15 @@ main(int argc, char* argv[])
     // set int_multi
     IntHop::multi = int_multi;
     // IntHeader::mode
-    if (cc_mode == 7 || cc_mode == 11)
+    if (cc_mode == CC_MODE::TIMELY || cc_mode == CC_MODE::PATCHED_TIMELY)
     { // timely or patched timely, use ts
         IntHeader::mode = IntHeader::TS;
     }
-    else if (cc_mode == 3)
+    else if (cc_mode == CC_MODE::POWERTCP)
     { // hpcc, powertcp, use int
         IntHeader::mode = IntHeader::NORMAL;
     }
-    else if (cc_mode == 10)
+    else if (cc_mode == CC_MODE::HPCC_PINT)
     { // hpcc-pint
         IntHeader::mode = IntHeader::PINT;
     }
@@ -984,7 +984,7 @@ main(int argc, char* argv[])
     }
 
     // Set Pint
-    if (cc_mode == 10)
+    if (cc_mode == CC_MODE::HPCC_PINT)
     {
         Pint::set_log_base(pint_log_base);
         IntHeader::pint_bytes = Pint::get_n_bytes();
