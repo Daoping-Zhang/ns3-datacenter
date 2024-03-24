@@ -626,7 +626,7 @@ RdmaHw::Receive(Ptr<Packet> p, CustomHeader& ch)
 }
 
 int
-RdmaHw::ReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size)
+RdmaHw::ReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size) const
 {
     uint32_t expected = q->ReceiverNextExpectedSeq;
     if (seq == expected)
@@ -821,7 +821,7 @@ RdmaHw::GetNxtPacket(Ptr<RdmaQueuePair> qp)
 }
 
 void
-RdmaHw::PktSent(Ptr<RdmaQueuePair> qp, Ptr<Packet> pkt, Time interframeGap)
+RdmaHw::PktSent(Ptr<RdmaQueuePair> qp, Ptr<Packet> pkt, Time interframeGap) const
 {
     qp->lastPktSize = pkt->GetSize();
     //	SeqTsHeader seqTs;
@@ -832,7 +832,7 @@ RdmaHw::PktSent(Ptr<RdmaQueuePair> qp, Ptr<Packet> pkt, Time interframeGap)
 }
 
 void
-RdmaHw::UpdateNextAvail(Ptr<RdmaQueuePair> qp, Time interframeGap, uint32_t pkt_size)
+RdmaHw::UpdateNextAvail(Ptr<RdmaQueuePair> qp, Time interframeGap, uint32_t pkt_size) const
 {
     Time sendingTime;
     if (m_rateBound)
@@ -1586,7 +1586,7 @@ RdmaHw::HandleAckTimely(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
 }
 
 void
-RdmaHw::UpdateRateTimely(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, bool us)
+RdmaHw::UpdateRateTimely(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, bool us) const
 {
     uint32_t next_seq = qp->snd_nxt;
     uint64_t rtt = Simulator::Now().GetTimeStep() - ch.ack.ih.ts;
@@ -1782,7 +1782,7 @@ RdmaHw::FastReactPatchedTimely(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeade
  * DCTCP
  *********************/
 void
-RdmaHw::HandleAckDctcp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
+RdmaHw::HandleAckDctcp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch) const
 {
     uint32_t ack_seq = ch.ack.seq;
     uint8_t cnp = (ch.ack.flags >> qbbHeader::FLAG_CNP) & 1;

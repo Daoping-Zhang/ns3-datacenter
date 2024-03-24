@@ -95,7 +95,7 @@ class RdmaHw : public Object
                          // Only NIC can call this function. And do not call this upon PFC
 
     void CheckandSendQCN(Ptr<RdmaRxQueuePair> q);
-    int ReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size);
+    int ReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size) const;
     void AddHeader(Ptr<Packet> p, uint16_t protocolNumber);
     static uint16_t EtherToPpp(uint16_t protocol);
 
@@ -109,8 +109,8 @@ class RdmaHw : public Object
     void RedistributeQp();
 
     Ptr<Packet> GetNxtPacket(Ptr<RdmaQueuePair> qp); // get next packet to send, inc snd_nxt
-    void PktSent(Ptr<RdmaQueuePair> qp, Ptr<Packet> pkt, Time interframeGap);
-    void UpdateNextAvail(Ptr<RdmaQueuePair> qp, Time interframeGap, uint32_t pkt_size);
+    void PktSent(Ptr<RdmaQueuePair> qp, Ptr<Packet> pkt, Time interframeGap) const;
+    void UpdateNextAvail(Ptr<RdmaQueuePair> qp, Time interframeGap, uint32_t pkt_size) const;
     void ChangeRate(Ptr<RdmaQueuePair> qp, DataRate new_rate);
     /******************************
      * Mellanox's version of DCQCN
@@ -173,7 +173,7 @@ class RdmaHw : public Object
     double m_tmly_alpha, m_tmly_beta;
     uint64_t m_tmly_TLow, m_tmly_THigh, m_tmly_minRtt;
     void HandleAckTimely(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch);
-    void UpdateRateTimely(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, bool us);
+    void UpdateRateTimely(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, bool us) const;
     void FastReactTimely(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch);
 
     /*********************
@@ -193,7 +193,7 @@ class RdmaHw : public Object
      * DCTCP
      *********************/
     DataRate m_dctcp_rai;
-    void HandleAckDctcp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch);
+    void HandleAckDctcp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch) const;
 
     /*********************
      * HPCC-PINT
