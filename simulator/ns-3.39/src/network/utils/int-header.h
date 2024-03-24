@@ -90,20 +90,26 @@ class IntHop
 
     uint64_t GetBytesDelta(IntHop& b) const
     {
-        if (bytes >= b.bytes) {
+        if (bytes >= b.bytes)
+        {
             return (bytes - b.bytes) * byteUnit * multi;
-        } else {
+        }
+        else
+        {
             return (bytes + (1 << bytesWidth) - b.bytes) * byteUnit * multi;
-}
+        }
     }
 
     uint64_t GetTimeDelta(IntHop& b) const
     {
-        if (time >= b.time) {
+        if (time >= b.time)
+        {
             return time - b.time;
-        } else {
+        }
+        else
+        {
             return time + (1 << timeWidth) - b.time;
-}
+        }
     }
 };
 
@@ -117,6 +123,7 @@ class IntHeader
         NORMAL = 0,
         TS = 1,
         PINT = 2,
+        SWIFT = 3,
         NONE
     };
 

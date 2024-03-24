@@ -2,6 +2,7 @@
 
 #include "ppp-header.h"
 #include "qbb-net-device.h"
+#include "rdma-hw.h"
 
 #include "ns3/boolean.h"
 #include "ns3/custom-priority-tag.h"
@@ -65,22 +66,28 @@ SwitchNode::SwitchNode()
     m_ecmpSeed = m_id;
     m_node_type = 1;
     m_mmu = CreateObject<SwitchMmu>();
-    for (uint32_t i = 0; i < pCnt; i++) {
-        for (uint32_t j = 0; j < pCnt; j++) {
-            for (uint32_t k = 0; k < qCnt; k++) {
+    for (uint32_t i = 0; i < pCnt; i++)
+    {
+        for (uint32_t j = 0; j < pCnt; j++)
+        {
+            for (uint32_t k = 0; k < qCnt; k++)
+            {
                 m_bytes[i][j][k] = 0;
-}
-}
-}
-    for (uint32_t i = 0; i < pCnt; i++) {
+            }
+        }
+    }
+    for (uint32_t i = 0; i < pCnt; i++)
+    {
         m_txBytes[i] = 0;
-}
-    for (uint32_t i = 0; i < pCnt; i++) {
+    }
+    for (uint32_t i = 0; i < pCnt; i++)
+    {
         m_lastPktSize[i] = m_lastPktTs[i] = 0;
-}
-    for (uint32_t i = 0; i < pCnt; i++) {
+    }
+    for (uint32_t i = 0; i < pCnt; i++)
+    {
         m_u[i] = 0;
-}
+    }
 }
 
 int
@@ -96,9 +103,10 @@ SwitchNode::GetOutDev(Ptr<const Packet> p, CustomHeader& ch)
     auto entry = m_rtTable.find(ih.GetDestination().Get());
 
     // no matching entry
-    if (entry == m_rtTable.end()) {
+    if (entry == m_rtTable.end())
+    {
         return -1;
-}
+    }
 
     // entry found
     auto& nexthops = entry->second;
@@ -121,9 +129,10 @@ SwitchNode::GetOutDev(Ptr<const Packet> p, CustomHeader& ch)
     {
         buf.u32[2] = ch.udp.sport | ((uint32_t)ch.udp.dport << 16);
     }
-    else if (ch.l3Prot == 0xFC || ch.l3Prot == 0xFD) {
+    else if (ch.l3Prot == 0xFC || ch.l3Prot == 0xFD)
+    {
         buf.u32[2] = ch.ack.sport | ((uint32_t)ch.ack.dport << 16);
-}
+    }
 
     uint32_t idx = EcmpHash(buf.u8, 12, m_ecmpSeed) % nexthops.size();
     // if (nexthops.size()>1){ std::cout << "selected " << idx << std::endl; }
@@ -223,10 +232,11 @@ SwitchNode::SendToDev(Ptr<Packet> p, CustomHeader& ch)
             p->GetSize(); // Attention: this is the egress port's total received packets. Not the
                           // ingress port.
     }
-    else {
+    else
+    {
         std::cout << "outdev not found! Dropped. This should not happen. Debugging required!"
                   << std::endl;
-}
+    }
     // Drop
 }
 
@@ -341,29 +351,33 @@ SwitchNode::SwitchNotifyDequeue(uint32_t ifIndex, uint32_t qIndex, Ptr<Packet> p
             IntHeader* ih = (IntHeader*)&buf[PppHeader::GetStaticSize() + 20 + 8 +
                                              6]; // ppp, ip, udp, SeqTs, INT
             Ptr<QbbNetDevice> dev = DynamicCast<QbbNetDevice>(m_devices[ifIndex]);
-            if (m_ccMode == 3)
-            { // HPCC or PowerTCP-INT
-                if (!PowerEnabled) {
+            switch (m_ccMode)
+            {
+            case CC_MODE::HPCC:
+                if (!PowerEnabled)
+                {
                     ih->PushHop(Simulator::Now().GetTimeStep(),
                                 m_txBytes[ifIndex],
                                 dev->GetQueue()->GetNBytesTotal(),
                                 dev->GetDataRate().GetBitRate());
-                } else {
+                }
+                else
+                {
                     ih->PushHop(Simulator::Now().GetTimeStep(),
                                 dev->GetQueue()->GetNBytesRxTotal(),
                                 dev->GetQueue()->GetNBytesTotal(),
                                 dev->GetDataRate().GetBitRate());
-}
+                }
                 // ih->PushHop(Simulator::Now().GetTimeStep(), m_txBytes[ifIndex],
                 // dev->GetQueue()->GetNBytesTotal(), dev->GetDataRate().GetBitRate());
-            }
-            else if (m_ccMode == 10)
-            { // HPCC-PINT
+                break;
+            case CC_MODE::HPCC_PINT: {
                 uint64_t t = Simulator::Now().GetTimeStep();
                 uint64_t dt = t - m_lastPktTs[ifIndex];
-                if (dt > m_maxRtt) {
+                if (dt > m_maxRtt)
+                {
                     dt = m_maxRtt;
-}
+                }
                 uint64_t B = dev->GetDataRate().GetBitRate() / 8; // Bps
                 uint64_t qlen = dev->GetQueue()->GetNBytesTotal();
                 double newU;
@@ -428,32 +442,34 @@ SwitchNode::SwitchNotifyDequeue(uint32_t ifIndex, uint32_t qIndex, Ptr<Packet> p
                  * update PINT header
                  ***********************/
                 uint16_t power = Pint::encode_u(newU);
-                if (power > ih->GetPower()) {
+                if (power > ih->GetPower())
+                {
                     ih->SetPower(power);
-}
+                }
 
                 m_u[ifIndex] = newU;
+                break;
             }
-        }
-        else
-        {
-            FeedbackTag Int;
-            bool found;
-            found = p->PeekPacketTag(Int);
-            if (found)
-            {
-                Ptr<QbbNetDevice> dev = DynamicCast<QbbNetDevice>(m_devices[ifIndex]);
-                Int.setTelemetryQlenDeq(
-                    Int.getHopCount(),
-                    dev->GetQueue()->GetNBytesTotal()); // queue length at dequeue
-                Int.setTelemetryTsDeq(Int.getHopCount(),
-                                      Simulator::Now().GetNanoSeconds()); // timestamp at dequeue
-                Int.setTelemetryBw(Int.getHopCount(), dev->GetDataRate().GetBitRate());
-                Int.setTelemetryTxBytes(Int.getHopCount(), m_txBytes[ifIndex]);
-                Int.incrementHopCount();  // Incrementing hop count at Dequeue. Don't do this at
-                                          // enqueue.
-                p->ReplacePacketTag(Int); // replacing the tag with new values
-                // std::cout << "found " << Int.getHopCount() << std::endl;
+            default:
+                FeedbackTag Int;
+                bool found;
+                found = p->PeekPacketTag(Int);
+                if (found)
+                {
+                    Ptr<QbbNetDevice> dev = DynamicCast<QbbNetDevice>(m_devices[ifIndex]);
+                    Int.setTelemetryQlenDeq(
+                        Int.getHopCount(),
+                        dev->GetQueue()->GetNBytesTotal()); // queue length at dequeue
+                    Int.setTelemetryTsDeq(
+                        Int.getHopCount(),
+                        Simulator::Now().GetNanoSeconds()); // timestamp at dequeue
+                    Int.setTelemetryBw(Int.getHopCount(), dev->GetDataRate().GetBitRate());
+                    Int.setTelemetryTxBytes(Int.getHopCount(), m_txBytes[ifIndex]);
+                    Int.incrementHopCount();  // Incrementing hop count at Dequeue. Don't do this at
+                                              // enqueue.
+                    p->ReplacePacketTag(Int); // replacing the tag with new values
+                    // std::cout << "found " << Int.getHopCount() << std::endl;
+                }
             }
         }
     }
@@ -482,9 +498,10 @@ SwitchNode::log2apprx(int x, int b, int m, int l)
 		x += + (1 << (msb - m - 1));
 #else
         int mask = (1 << (msb - m)) - 1;
-        if ((x0 & mask) > (rand() & mask)) {
+        if ((x0 & mask) > (rand() & mask))
+        {
             x += 1 << (msb - m);
-}
+        }
 #endif
     }
     return int(log2(x) * (1 << logres_shift(b, l)));

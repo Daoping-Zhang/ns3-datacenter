@@ -19,28 +19,26 @@ int IntHeader::pint_bytes = 2;
 IntHeader::IntHeader()
     : nhop(0)
 {
-    for (uint32_t i = 0; i < maxHop; i++) {
+    for (uint32_t i = 0; i < maxHop; i++)
+    {
         hop[i] = {{{0}}};
-}
+    }
 }
 
 uint32_t
 IntHeader::GetStaticSize()
 {
-    if (mode == NORMAL)
+    switch (mode)
     {
+    case NORMAL:
         return sizeof(hop) + sizeof(nhop);
-    }
-    else if (mode == TS)
-    {
+    case TS:
         return sizeof(ts);
-    }
-    else if (mode == PINT)
-    {
+    case PINT:
         return sizeof(pint);
-    }
-    else
-    {
+    case SWIFT:
+        return sizeof(swift);
+    default:
         return 0;
     }
 }
@@ -61,26 +59,55 @@ void
 IntHeader::Serialize(Buffer::Iterator start) const
 {
     Buffer::Iterator i = start;
-    if (mode == NORMAL)
-    {
-        for (uint32_t j = 0; j < maxHop; j++)
+    // if (mode == NORMAL)
+    // {
+    //     for (uint32_t j = 0; j < maxHop; j++)
+    //     {
+    //         i.WriteU32(hop[j].buf[0]);
+    //         i.WriteU32(hop[j].buf[1]);
+    //     }
+    //     i.WriteU16(nhop);
+    // }
+    // else if (mode == TS)
+    // {
+    //     i.WriteU64(ts);
+    // }
+    // else if (mode == PINT)
+    // {
+    //     if (pint_bytes == 1)
+    //     {
+    //         i.WriteU8(pint.power_lo8);
+    //     }
+    //     else if (pint_bytes == 2)
+    //     {
+    //         i.WriteU16(pint.power);
+    //     }
+    // }
+    switch(mode) {
+        case NORMAL:
+                for (uint32_t j = 0; j < maxHop; j++)
         {
             i.WriteU32(hop[j].buf[0]);
             i.WriteU32(hop[j].buf[1]);
         }
         i.WriteU16(nhop);
-    }
-    else if (mode == TS)
-    {
+        break;
+        case TS:
         i.WriteU64(ts);
-    }
-    else if (mode == PINT)
-    {
-        if (pint_bytes == 1) {
+        break;
+        case PINT:
+        if (pint_bytes == 1)
+        {
             i.WriteU8(pint.power_lo8);
-        } else if (pint_bytes == 2) {
+        }
+        else if (pint_bytes == 2)
+        {
             i.WriteU16(pint.power);
-}
+        }
+        break;
+        case SWIFT:
+        // TODO: SWIFT serialization
+break;
     }
 }
 
@@ -103,11 +130,14 @@ IntHeader::Deserialize(Buffer::Iterator start)
     }
     else if (mode == PINT)
     {
-        if (pint_bytes == 1) {
+        if (pint_bytes == 1)
+        {
             pint.power_lo8 = i.ReadU8();
-        } else if (pint_bytes == 2) {
+        }
+        else if (pint_bytes == 2)
+        {
             pint.power = i.ReadU16();
-}
+        }
     }
     return GetStaticSize();
 }
@@ -115,18 +145,20 @@ IntHeader::Deserialize(Buffer::Iterator start)
 uint64_t
 IntHeader::GetTs(void) const
 {
-    if (mode == TS) {
+    if (mode == TS)
+    {
         return ts;
-}
+    }
     return 0;
 }
 
 uint16_t
 IntHeader::GetPower(void) const
 {
-    if (mode == PINT) {
+    if (mode == PINT)
+    {
         return pint_bytes == 1 ? pint.power_lo8 : pint.power;
-}
+    }
     return 0;
 }
 
@@ -135,11 +167,14 @@ IntHeader::SetPower(uint16_t power)
 {
     if (mode == PINT)
     {
-        if (pint_bytes == 1) {
+        if (pint_bytes == 1)
+        {
             pint.power_lo8 = power;
-        } else {
+        }
+        else
+        {
             pint.power = power;
-}
+        }
     }
 }
 
