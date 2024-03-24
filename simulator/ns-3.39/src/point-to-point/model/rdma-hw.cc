@@ -203,7 +203,22 @@ RdmaHw::GetTypeId(void)
                           "to enable PowerTCP in delaymode",
                           BooleanValue(false),
                           MakeBooleanAccessor(&RdmaHw::PowerTCPdelay),
-                          MakeBooleanChecker());
+                          MakeBooleanChecker())
+            .AddAttribute("SwiftAi",
+                          "Swift's additive increment",
+                          UintegerValue(0),
+                          MakeIntegerAccessor(&RdmaHw::swift_ai),
+                          MakeIntegerChecker<uint32_t>())
+            .AddAttribute("SwiftBeta",
+                          "Swift's multiplicative decrease constant",
+                          DoubleValue(0.0),
+                          MakeDoubleAccessor(&RdmaHw::swift_beta),
+                          MakeDoubleChecker<double>())
+            .AddAttribute("SwiftMaxMdf",
+                          "Swift's maximum multiplicative decrease factor",
+                          DoubleValue(0.0),
+                          MakeDoubleAccessor(&RdmaHw::swift_max_mdf),
+                          MakeDoubleChecker<double>());
     return tid;
 }
 

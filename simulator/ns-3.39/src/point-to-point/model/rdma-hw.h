@@ -202,6 +202,13 @@ class RdmaHw : public Object
     void SetPintSmplThresh(double p);
     void HandleAckHpPint(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch);
     void UpdateRateHpPint(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, bool fast_react);
+
+    /*********************
+     * Swift
+     ********************/
+    uint32_t swift_ai;    // additive increment
+    double swift_beta;    // multiplicative decrease constant
+    double swift_max_mdf; // max multiplicative decrease factor
 };
 
 enum CC_MODE
@@ -213,7 +220,8 @@ enum CC_MODE
     TIMELY = 7,
     DCTCP = 8,
     HPCC_PINT = 10,
-    PATCHED_TIMELY = 11
+    PATCHED_TIMELY = 11,
+    SWIFT = 12
 };
 
 } /* namespace ns3 */

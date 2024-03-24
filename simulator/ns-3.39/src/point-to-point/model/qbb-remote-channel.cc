@@ -18,64 +18,62 @@
  * Author: George Riley <riley@ece.gatech.edu>
  */
 
-#include <iostream>
-
 #include "qbb-remote-channel.h"
+
 #include "qbb-net-device.h"
+
+#include "ns3/log.h"
 #include "ns3/packet.h"
 #include "ns3/simulator.h"
-#include "ns3/log.h"
+
+#include <iostream>
 // #include "ns3/mpi-interface.h"
 
 using namespace std;
 
-NS_LOG_COMPONENT_DEFINE ("QbbRemoteChannel");
+NS_LOG_COMPONENT_DEFINE("QbbRemoteChannel");
 
-namespace ns3 {
+namespace ns3
+{
 
-NS_OBJECT_ENSURE_REGISTERED (QbbRemoteChannel);
+NS_OBJECT_ENSURE_REGISTERED(QbbRemoteChannel);
 
 TypeId
-QbbRemoteChannel::GetTypeId (void)
+QbbRemoteChannel::GetTypeId(void)
 {
-  static TypeId tid = TypeId ("ns3::QbbRemoteChannel")
-    .SetParent<QbbChannel> ()
-    .AddConstructor<QbbRemoteChannel> ()
-  ;
-  return tid;
+    static TypeId tid =
+        TypeId("ns3::QbbRemoteChannel").SetParent<QbbChannel>().AddConstructor<QbbRemoteChannel>();
+    return tid;
 }
 
-QbbRemoteChannel::QbbRemoteChannel ()
+QbbRemoteChannel::QbbRemoteChannel()
 {
 }
 
-QbbRemoteChannel::~QbbRemoteChannel ()
+QbbRemoteChannel::~QbbRemoteChannel()
 {
 }
 
 bool
-QbbRemoteChannel::TransmitStart (
-  Ptr<Packet> p,
-  Ptr<QbbNetDevice> src,
-  Time txTime)
+QbbRemoteChannel::TransmitStart(Ptr<Packet> p, Ptr<QbbNetDevice> src, Time txTime)
 {
-  NS_LOG_FUNCTION (this << p << src);
-  NS_LOG_LOGIC ("UID is " << p->GetUid () << ")");
+    NS_LOG_FUNCTION(this << p << src);
+    NS_LOG_LOGIC("UID is " << p->GetUid() << ")");
 
-  IsInitialized ();
+    IsInitialized();
 
-  uint32_t wire = src == GetSource (0) ? 0 : 1;
-  Ptr<QbbNetDevice> dst = GetDestination (wire);
+    uint32_t wire = src == GetSource(0) ? 0 : 1;
+    Ptr<QbbNetDevice> dst = GetDestination(wire);
 
 #ifdef NS3_MPI
-  // Calculate the rxTime (absolute)
-  // Time rxTime = Simulator::Now () + txTime + GetDelay ();
-  // MpiInterface::SendPacket (p, rxTime, dst->GetNode ()->GetId (), dst->GetIfIndex ());
-  NS_FATAL_ERROR ("MPI Issue");
+    // Calculate the rxTime (absolute)
+    // Time rxTime = Simulator::Now () + txTime + GetDelay ();
+    // MpiInterface::SendPacket (p, rxTime, dst->GetNode ()->GetId (), dst->GetIfIndex ());
+    NS_FATAL_ERROR("MPI Issue");
 #else
-  NS_FATAL_ERROR ("Can't use distributed simulator without MPI compiled in");
+    NS_FATAL_ERROR("Can't use distributed simulator without MPI compiled in");
 #endif
-  return true;
+    return true;
 }
 
 } // namespace ns3

@@ -27,21 +27,20 @@
 
 #include "qbb-channel.h"
 
-namespace ns3 {
+namespace ns3
+{
 
 /**
  * \ingroup qbb
  */
 class QbbRemoteChannel : public QbbChannel
 {
-public:
-  static TypeId GetTypeId (void);
-  QbbRemoteChannel ();
-  ~QbbRemoteChannel ();
-  virtual bool TransmitStart (Ptr<Packet> p, Ptr<QbbNetDevice> src, Time txTime);
+  public:
+    static TypeId GetTypeId(void);
+    QbbRemoteChannel();
+    ~QbbRemoteChannel();
+    virtual bool TransmitStart(Ptr<Packet> p, Ptr<QbbNetDevice> src, Time txTime);
 };
-}
+} // namespace ns3
 
 #endif
-
-
