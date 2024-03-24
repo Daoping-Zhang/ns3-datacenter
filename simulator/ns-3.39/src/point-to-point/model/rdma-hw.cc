@@ -1,6 +1,6 @@
 #include "rdma-hw.h"
 
-#include "cn-header.h"
+#include "pint.h"
 #include "ppp-header.h"
 #include "qbb-header.h"
 

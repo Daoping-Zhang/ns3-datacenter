@@ -3,14 +3,14 @@
 namespace ns3
 {
 
-const uint64_t IntHop::lineRateValues[8] = {25000000000lu,
-                                            50000000000lu,
-                                            100000000000lu,
-                                            200000000000lu,
-                                            400000000000lu,
+const uint64_t IntHop::lineRateValues[8] = {25000000000LU,
+                                            50000000000LU,
+                                            100000000000LU,
+                                            200000000000LU,
+                                            400000000000LU,
                                             0,
                                             0,
-                                            40000000000lu};
+                                            40000000000LU};
 uint32_t IntHop::multi = 1;
 
 IntHeader::Mode IntHeader::mode = NONE;
@@ -19,8 +19,9 @@ int IntHeader::pint_bytes = 2;
 IntHeader::IntHeader()
     : nhop(0)
 {
-    for (uint32_t i = 0; i < maxHop; i++)
-        hop[i] = {0};
+    for (uint32_t i = 0; i < maxHop; i++) {
+        hop[i] = {{{0}}};
+}
 }
 
 uint32_t
@@ -75,10 +76,11 @@ IntHeader::Serialize(Buffer::Iterator start) const
     }
     else if (mode == PINT)
     {
-        if (pint_bytes == 1)
+        if (pint_bytes == 1) {
             i.WriteU8(pint.power_lo8);
-        else if (pint_bytes == 2)
+        } else if (pint_bytes == 2) {
             i.WriteU16(pint.power);
+}
     }
 }
 
@@ -101,27 +103,30 @@ IntHeader::Deserialize(Buffer::Iterator start)
     }
     else if (mode == PINT)
     {
-        if (pint_bytes == 1)
+        if (pint_bytes == 1) {
             pint.power_lo8 = i.ReadU8();
-        else if (pint_bytes == 2)
+        } else if (pint_bytes == 2) {
             pint.power = i.ReadU16();
+}
     }
     return GetStaticSize();
 }
 
 uint64_t
-IntHeader::GetTs(void)
+IntHeader::GetTs(void) const
 {
-    if (mode == TS)
+    if (mode == TS) {
         return ts;
+}
     return 0;
 }
 
 uint16_t
-IntHeader::GetPower(void)
+IntHeader::GetPower(void) const
 {
-    if (mode == PINT)
+    if (mode == PINT) {
         return pint_bytes == 1 ? pint.power_lo8 : pint.power;
+}
     return 0;
 }
 
@@ -130,10 +135,11 @@ IntHeader::SetPower(uint16_t power)
 {
     if (mode == PINT)
     {
-        if (pint_bytes == 1)
+        if (pint_bytes == 1) {
             pint.power_lo8 = power;
-        else
+        } else {
             pint.power = power;
+}
     }
 }
 

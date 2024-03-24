@@ -139,14 +139,14 @@ class RdmaQueuePair : public Object
     void SetVarWin(bool v);
     void SetAppNotifyCallback(Callback<void> notifyAppFinish);
 
-    uint64_t GetBytesLeft();
-    uint32_t GetHash(void);
+    uint64_t GetBytesLeft() const;
+    uint32_t GetHash(void) const;
     void Acknowledge(uint64_t ack);
-    uint64_t GetOnTheFly();
-    bool IsWinBound();
-    uint64_t GetWin(); // window size calculated from m_rate
-    bool IsFinished();
-    uint64_t HpGetCurWin(); // window size calculated from hp.m_curRate, used by HPCC
+    uint64_t GetOnTheFly() const;
+    bool IsWinBound() const;
+    uint64_t GetWin() const; // window size calculated from m_rate
+    bool IsFinished() const;
+    uint64_t HpGetCurWin() const; // window size calculated from hp.m_curRate, used by HPCC
     uint32_t incastFlow;
 };
 
@@ -178,7 +178,7 @@ class RdmaRxQueuePair : public Object
 
     static TypeId GetTypeId(void);
     RdmaRxQueuePair();
-    uint32_t GetHash(void);
+    uint32_t GetHash(void) const;
 };
 
 class RdmaQueuePairGroup : public Object
@@ -189,7 +189,7 @@ class RdmaQueuePairGroup : public Object
 
     static TypeId GetTypeId(void);
     RdmaQueuePairGroup(void);
-    uint32_t GetN(void);
+    uint32_t GetN(void) const;
     Ptr<RdmaQueuePair> Get(uint32_t idx);
     Ptr<RdmaQueuePair> operator[](uint32_t idx);
     void AddQp(Ptr<RdmaQueuePair> qp);

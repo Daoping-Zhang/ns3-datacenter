@@ -521,8 +521,9 @@ QbbHelper::EnableTracing(FILE* file, NodeContainer node_container)
         Ptr<Node> node = *i;
         for (uint32_t j = 0; j < node->GetNDevices(); ++j)
         {
-            if (node->GetDevice(j)->IsQbb())
+            if (node->GetDevice(j)->IsQbb()) {
                 EnableTracingDevice(file, DynamicCast<QbbNetDevice>(node->GetDevice(j)));
+}
         }
     }
 }

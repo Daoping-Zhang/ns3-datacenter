@@ -50,7 +50,9 @@ RdmaQueuePair::RdmaQueuePair(uint16_t pg,
     mlx.m_rpTimeStage = 0;
     hp.m_lastUpdateSeq = 0;
     for (uint32_t i = 0; i < sizeof(hp.keep) / sizeof(hp.keep[0]); i++)
+    {
         hp.keep[i] = 0;
+    }
     hp.m_incStage = 0;
     hp.m_lastGap = 0;
     hp.u = 1;
@@ -107,13 +109,13 @@ RdmaQueuePair::SetAppNotifyCallback(Callback<void> notifyAppFinish)
 }
 
 uint64_t
-RdmaQueuePair::GetBytesLeft()
+RdmaQueuePair::GetBytesLeft() const
 {
     return m_size >= snd_nxt ? m_size - snd_nxt : 0;
 }
 
 uint32_t
-RdmaQueuePair::GetHash(void)
+RdmaQueuePair::GetHash(void) const
 {
     union {
         struct
@@ -142,20 +144,20 @@ RdmaQueuePair::Acknowledge(uint64_t ack)
 }
 
 uint64_t
-RdmaQueuePair::GetOnTheFly()
+RdmaQueuePair::GetOnTheFly() const
 {
     return snd_nxt - snd_una;
 }
 
 bool
-RdmaQueuePair::IsWinBound()
+RdmaQueuePair::IsWinBound() const
 {
     uint64_t w = GetWin();
     return w != 0 && GetOnTheFly() >= w;
 }
 
 uint64_t
-RdmaQueuePair::GetWin()
+RdmaQueuePair::GetWin() const
 {
     //	return m_win;
     uint64_t w = 0;
@@ -169,13 +171,15 @@ RdmaQueuePair::GetWin()
     }
     else
     {
-        if (m_win == 0)
+        if (m_win == 0) {
             return 0;
+}
         if (m_var_win)
         {
             w = m_win * m_rate.GetBitRate() / m_max_rate.GetBitRate();
-            if (w == 0)
+            if (w == 0) {
                 w = 1; // must > 0
+}
         }
         else
         {
@@ -186,16 +190,18 @@ RdmaQueuePair::GetWin()
 }
 
 uint64_t
-RdmaQueuePair::HpGetCurWin()
+RdmaQueuePair::HpGetCurWin() const
 {
-    if (m_win == 0)
+    if (m_win == 0) {
         return 0;
+}
     uint64_t w;
     if (m_var_win)
     {
         w = m_win * hp.m_curRate.GetBitRate() / m_max_rate.GetBitRate();
-        if (w == 0)
+        if (w == 0) {
             w = 1; // must > 0
+}
     }
     else
     {
@@ -205,12 +211,13 @@ RdmaQueuePair::HpGetCurWin()
 }
 
 bool
-RdmaQueuePair::IsFinished()
+RdmaQueuePair::IsFinished() const
 {
-    if (Simulator::Now() > stopTime)
+    if (Simulator::Now() > stopTime) {
         return true;
-    else
+    } else {
         return snd_una >= m_size;
+}
 }
 
 /*********************
@@ -234,7 +241,7 @@ RdmaRxQueuePair::RdmaRxQueuePair()
 }
 
 uint32_t
-RdmaRxQueuePair::GetHash(void)
+RdmaRxQueuePair::GetHash(void) const
 {
     union {
         struct
@@ -268,7 +275,7 @@ RdmaQueuePairGroup::RdmaQueuePairGroup(void)
 }
 
 uint32_t
-RdmaQueuePairGroup::GetN(void)
+RdmaQueuePairGroup::GetN(void) const
 {
     return m_qps.size();
 }

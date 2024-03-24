@@ -31,22 +31,22 @@ class IntHop
     static const uint32_t qlenUnit = 80;
     static uint32_t multi;
 
-    uint64_t GetLineRate()
+    uint64_t GetLineRate() const
     {
         return lineRateValues[lineRate];
     }
 
-    uint64_t GetBytes()
+    uint64_t GetBytes() const
     {
         return (uint64_t)bytes * byteUnit * multi;
     }
 
-    uint32_t GetQlen()
+    uint32_t GetQlen() const
     {
         return (uint32_t)qlen * qlenUnit * multi;
     }
 
-    uint64_t GetTime()
+    uint64_t GetTime() const
     {
         return time;
     }
@@ -58,28 +58,28 @@ class IntHop
         qlen = _qlen / (qlenUnit * multi);
         switch (_rate)
         {
-        case 25000000000lu:
+        case 25000000000LU:
             lineRate = 0;
             break;
-        case 50000000000lu:
+        case 50000000000LU:
             lineRate = 1;
             break;
-        case 100000000000lu:
+        case 100000000000LU:
             lineRate = 2;
             break;
-        case 200000000000lu:
+        case 200000000000LU:
             lineRate = 3;
             break;
-        case 400000000000lu:
+        case 400000000000LU:
             lineRate = 4;
             break;
-        case 0lu:
+        case 0LU:
             lineRate = 5;
             break;
-        case 100lu:
+        case 100LU:
             lineRate = 6;
             break;
-        case 40000000000lu:
+        case 40000000000LU:
             lineRate = 7;
             break;
         default:
@@ -88,20 +88,22 @@ class IntHop
         }
     }
 
-    uint64_t GetBytesDelta(IntHop& b)
+    uint64_t GetBytesDelta(IntHop& b) const
     {
-        if (bytes >= b.bytes)
+        if (bytes >= b.bytes) {
             return (bytes - b.bytes) * byteUnit * multi;
-        else
+        } else {
             return (bytes + (1 << bytesWidth) - b.bytes) * byteUnit * multi;
+}
     }
 
-    uint64_t GetTimeDelta(IntHop& b)
+    uint64_t GetTimeDelta(IntHop& b) const
     {
-        if (time >= b.time)
+        if (time >= b.time) {
             return time - b.time;
-        else
+        } else {
             return time + (1 << timeWidth) - b.time;
+}
     }
 };
 
@@ -140,6 +142,13 @@ class IntHeader
                 uint8_t power_lo8, power_hi8;
             };
         } pint;
+
+        struct
+        {
+            // remote queueing delay
+            uint32_t remote_queue;
+            uint32_t ts;
+        } swift;
     };
 
     IntHeader();
@@ -147,8 +156,8 @@ class IntHeader
     void PushHop(uint64_t time, uint64_t bytes, uint32_t qlen, uint64_t rate);
     void Serialize(Buffer::Iterator start) const;
     uint32_t Deserialize(Buffer::Iterator start);
-    uint64_t GetTs(void);
-    uint16_t GetPower(void);
+    uint64_t GetTs(void) const;
+    uint16_t GetPower(void) const;
     void SetPower(uint16_t);
 };
 

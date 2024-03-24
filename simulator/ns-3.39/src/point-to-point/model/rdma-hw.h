@@ -2,7 +2,6 @@
 #define RDMA_HW_H
 
 // #include <ns3/rdma.h>
-#include "pint.h"
 #include "qbb-net-device.h"
 
 #include <ns3/custom-header.h>
