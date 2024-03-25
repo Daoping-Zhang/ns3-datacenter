@@ -450,6 +450,10 @@ SwitchNode::SwitchNotifyDequeue(uint32_t ifIndex, uint32_t qIndex, Ptr<Packet> p
                 m_u[ifIndex] = newU;
                 break;
             }
+            case SWIFT:
+                // hop + 1
+                ih->IncrementHop();
+                break;
             default:
                 FeedbackTag Int;
                 bool found;

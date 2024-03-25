@@ -113,6 +113,8 @@ class IntHop
     }
 };
 
+// INT header goes with the packet, and therefore can record e.g. RTT and queue status along the
+// way.
 class IntHeader
 {
   public:
@@ -153,8 +155,11 @@ class IntHeader
         struct
         {
             // remote queueing delay
-            uint32_t remote_queue;
+            uint32_t remote_delay;
+            // sent timestamp
             uint32_t ts;
+            // hop count
+            uint64_t nhop;
         } swift;
     };
 
@@ -166,6 +171,7 @@ class IntHeader
     uint64_t GetTs(void) const;
     uint16_t GetPower(void) const;
     void SetPower(uint16_t);
+    void IncrementHop();
 };
 
 } // namespace ns3

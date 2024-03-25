@@ -76,6 +76,9 @@ RdmaQueuePair::RdmaQueuePair(uint16_t pg,
 
     hpccPint.m_lastUpdateSeq = 0;
     hpccPint.m_incStage = 0;
+
+    swift.m_lastUpdateSeq = 0;
+    swift.m_lastEndpointDelay = 0;
 }
 
 void
@@ -171,15 +174,17 @@ RdmaQueuePair::GetWin() const
     }
     else
     {
-        if (m_win == 0) {
+        if (m_win == 0)
+        {
             return 0;
-}
+        }
         if (m_var_win)
         {
             w = m_win * m_rate.GetBitRate() / m_max_rate.GetBitRate();
-            if (w == 0) {
+            if (w == 0)
+            {
                 w = 1; // must > 0
-}
+            }
         }
         else
         {
@@ -192,16 +197,18 @@ RdmaQueuePair::GetWin() const
 uint64_t
 RdmaQueuePair::HpGetCurWin() const
 {
-    if (m_win == 0) {
+    if (m_win == 0)
+    {
         return 0;
-}
+    }
     uint64_t w;
     if (m_var_win)
     {
         w = m_win * hp.m_curRate.GetBitRate() / m_max_rate.GetBitRate();
-        if (w == 0) {
+        if (w == 0)
+        {
             w = 1; // must > 0
-}
+        }
     }
     else
     {
@@ -213,11 +220,14 @@ RdmaQueuePair::HpGetCurWin() const
 bool
 RdmaQueuePair::IsFinished() const
 {
-    if (Simulator::Now() > stopTime) {
+    if (Simulator::Now() > stopTime)
+    {
         return true;
-    } else {
+    }
+    else
+    {
         return snd_una >= m_size;
-}
+    }
 }
 
 /*********************

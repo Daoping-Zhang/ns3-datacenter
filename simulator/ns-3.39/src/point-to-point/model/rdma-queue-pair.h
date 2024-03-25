@@ -16,6 +16,8 @@
 namespace ns3
 {
 
+// Queue pair stores runtime information, including window, src and dst ip, and runtime status of CC
+// algorithm, etc
 class RdmaQueuePair : public Object
 {
   public:
@@ -123,6 +125,16 @@ class RdmaQueuePair : public Object
         DataRate m_curRate;
         uint32_t m_incStage;
     } hpccPint;
+
+    struct
+    {
+        // seq num of packet which last triggered update
+        uint32_t m_lastUpdateSeq;
+        // last endpoint delay, stored for EWMA
+        uint32_t m_lastEndpointDelay;
+        // current rate
+        DataRate m_curRate;
+    } swift;
 
     /***********
      * methods

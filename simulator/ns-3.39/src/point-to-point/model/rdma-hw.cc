@@ -365,14 +365,14 @@ RdmaHw::AddQueuePair(uint64_t size,
     {
         qp->SetWin(m_bps.GetBitRate() * 1 * baseRtt * 1e-9 / 8);
     }
-    qp->m_rate = m_bps;
+    qp->m_rate = m_bps; // transmission starts at full rate
     qp->m_max_rate = m_bps;
-    if (m_cc_mode == CC_MODE::MLX_CNP)
+    switch (m_cc_mode)
     {
+    case CC_MODE::MLX_CNP:
         qp->mlx.m_targetRate = m_bps;
-    }
-    else if (m_cc_mode == CC_MODE::HPCC)
-    {
+        break;
+    case CC_MODE::HPCC:
         qp->hp.m_curRate = m_bps;
         if (m_multipleRate)
         {
@@ -381,14 +381,16 @@ RdmaHw::AddQueuePair(uint64_t size,
                 qp->hp.hopState[i].Rc = m_bps;
             }
         }
-    }
-    else if (m_cc_mode == CC_MODE::TIMELY || m_cc_mode == CC_MODE::PATCHED_TIMELY)
-    {
+        break;
+    case CC_MODE::PATCHED_TIMELY:
+    case CC_MODE::TIMELY:
         qp->tmly.m_curRate = m_bps;
-    }
-    else if (m_cc_mode == CC_MODE::HPCC_PINT)
-    {
+        break;
+    case CC_MODE::HPCC_PINT:
         qp->hpccPint.m_curRate = m_bps;
+        break;
+    case CC_MODE::SWIFT:
+        qp->swift.m_curRate = m_bps;
     }
 
     // Notify Nic
@@ -474,6 +476,7 @@ RdmaHw::ReceiveUdp(Ptr<Packet> p, CustomHeader& ch)
     rxQp->m_milestone_rx = m_ack_interval;
 
     int x = ReceiverCheckSeq(ch.udp.seq, rxQp, payload_size);
+    std::cout << "Receive UDP, seq = " << ch.udp.seq << std::endl;
     if (x == 1 || x == 2)
     { // generate ACK or NACK
         qbbHeader seqh;
@@ -564,6 +567,9 @@ RdmaHw::ReceiveCnp(Ptr<Packet> p, CustomHeader& ch)
         {
             qp->hpccPint.m_curRate = dev->GetDataRate();
         }
+        else if (m_cc_mode == CC_MODE::SWIFT) {
+            qp->swift.m_curRate = dev->GetDataRate();
+        }
     }
     return 0;
 }
@@ -574,6 +580,7 @@ RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader& ch)
     uint16_t qIndex = ch.ack.pg;
     uint16_t port = ch.ack.dport;
     uint32_t seq = ch.ack.seq;
+    std::cout << "Received ACK, seq=" << ch.ack.seq << std::endl;
     uint8_t cnp = (ch.ack.flags >> qbbHeader::FLAG_CNP) & 1;
     int i;
     Ptr<RdmaQueuePair> qp = GetQp(ch.sip, port, qIndex);
@@ -638,6 +645,9 @@ RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader& ch)
         break;
     case CC_MODE::PATCHED_TIMELY:
         HandleAckPatchedTimely(qp, p, ch);
+        break;
+    case CC_MODE::SWIFT:
+        HandleAckSwift(qp, p, ch);
         break;
     default:
         break;
@@ -1995,7 +2005,27 @@ RdmaHw::UpdateRateHpPint(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch,
 void
 RdmaHw::HandleAckSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
 {
-    auto hops = ch.ack.ih.swift.nhop;
+    uint32_t ack_seq = ch.ack.seq;
+    // update rate
+    if (ack_seq > qp->swift.m_lastUpdateSeq)
+    { // if full RTT feedback is ready, do full update
+        UpdateRateSwift(qp, p, ch, false);
+    }
+    else
+    { // do fast react
+      // TODO
+    }
+}
+
+void
+RdmaHw::UpdateRateSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, bool fast_react)
+{
+    auto next_seq = qp->snd_nxt;
+    auto hopCount = ch.ack.ih.swift.nhop;
+    std::cout << "Hops: " << hopCount << std::endl;
+    // ChangeRate(qp, qp->m_rate);
+    qp->swift.m_lastUpdateSeq = next_seq;
+    qp->m_rate = qp->m_max_rate;
 }
 
 } // namespace ns3

@@ -59,43 +59,20 @@ void
 IntHeader::Serialize(Buffer::Iterator start) const
 {
     Buffer::Iterator i = start;
-    // if (mode == NORMAL)
-    // {
-    //     for (uint32_t j = 0; j < maxHop; j++)
-    //     {
-    //         i.WriteU32(hop[j].buf[0]);
-    //         i.WriteU32(hop[j].buf[1]);
-    //     }
-    //     i.WriteU16(nhop);
-    // }
-    // else if (mode == TS)
-    // {
-    //     i.WriteU64(ts);
-    // }
-    // else if (mode == PINT)
-    // {
-    //     if (pint_bytes == 1)
-    //     {
-    //         i.WriteU8(pint.power_lo8);
-    //     }
-    //     else if (pint_bytes == 2)
-    //     {
-    //         i.WriteU16(pint.power);
-    //     }
-    // }
-    switch(mode) {
-        case NORMAL:
-                for (uint32_t j = 0; j < maxHop; j++)
+    switch (mode)
+    {
+    case NORMAL:
+        for (uint32_t j = 0; j < maxHop; j++)
         {
             i.WriteU32(hop[j].buf[0]);
             i.WriteU32(hop[j].buf[1]);
         }
         i.WriteU16(nhop);
         break;
-        case TS:
+    case TS:
         i.WriteU64(ts);
         break;
-        case PINT:
+    case PINT:
         if (pint_bytes == 1)
         {
             i.WriteU8(pint.power_lo8);
@@ -105,9 +82,11 @@ IntHeader::Serialize(Buffer::Iterator start) const
             i.WriteU16(pint.power);
         }
         break;
-        case SWIFT:
+    case SWIFT:
         // TODO: SWIFT serialization
-break;
+        break;
+    default:
+        break;
     }
 }
 
@@ -115,21 +94,20 @@ uint32_t
 IntHeader::Deserialize(Buffer::Iterator start)
 {
     Buffer::Iterator i = start;
-    if (mode == NORMAL)
+    switch (mode)
     {
+    case NORMAL:
         for (uint32_t j = 0; j < maxHop; j++)
         {
             hop[j].buf[0] = i.ReadU32();
             hop[j].buf[1] = i.ReadU32();
         }
         nhop = i.ReadU16();
-    }
-    else if (mode == TS)
-    {
+        break;
+    case TS:
         ts = i.ReadU64();
-    }
-    else if (mode == PINT)
-    {
+        break;
+    case PINT:
         if (pint_bytes == 1)
         {
             pint.power_lo8 = i.ReadU8();
@@ -138,6 +116,12 @@ IntHeader::Deserialize(Buffer::Iterator start)
         {
             pint.power = i.ReadU16();
         }
+        break;
+    case SWIFT:
+        // TODO: SWIFT deserialization
+        break;
+    default:
+        break;
     }
     return GetStaticSize();
 }
@@ -175,6 +159,16 @@ IntHeader::SetPower(uint16_t power)
         {
             pint.power = power;
         }
+    }
+}
+
+// (for Swift) increment hop count
+void
+IntHeader::IncrementHop()
+{
+    if (mode == SWIFT)
+    {
+        swift.nhop++;
     }
 }
 
