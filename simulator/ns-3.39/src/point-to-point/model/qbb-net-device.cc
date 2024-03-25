@@ -19,9 +19,8 @@
  * Modified (by Vamsi Addanki) to also serve TCP/IP traffic.
  */
 
+#include <ostream>
 #define __STDC_LIMIT_MACROS 1
-#include "ns3/qbb-net-device.h"
-
 #include "ns3/assert.h"
 #include "ns3/boolean.h"
 #include "ns3/cn-header.h"
@@ -41,6 +40,7 @@
 #include "ns3/ppp-header.h"
 #include "ns3/qbb-channel.h"
 #include "ns3/qbb-header.h"
+#include "ns3/qbb-net-device.h"
 #include "ns3/random-variable.h"
 #include "ns3/rdma-tag.h"
 #include "ns3/seq-ts-header.h"
@@ -51,7 +51,6 @@
 
 #include <iostream>
 #include <stdint.h>
-#include <stdio.h>
 
 NS_LOG_COMPONENT_DEFINE("QbbNetDevice");
 
@@ -124,7 +123,9 @@ RdmaEgressQueue::GetNextQindex(bool paused[])
     bool found = false;
     uint32_t qIndex;
     if (!paused[ack_q_idx] && m_ackQ->GetNPackets() > 0)
+    {
         return -1;
+    }
 
     // no pkt in highest priority queue, do rr for each qp
     int res = -1024;
@@ -143,8 +144,10 @@ RdmaEgressQueue::GetNextQindex(bool paused[])
                 if (!paused[qp->m_pg] && qp->GetBytesLeft() > 0 && !qp->IsWinBound())
                 {
                     if (m_qpGrp->Get(idx)->m_nextAvail.GetTimeStep() >
-                        Simulator::Now().GetTimeStep()) // not available now
+                        Simulator::Now().GetTimeStep())
+                    { // not available now
                         continue;
+                    }
                     res = idx;
                     break;
                 }
@@ -160,13 +163,17 @@ RdmaEgressQueue::GetNextQindex(bool paused[])
                 int nxt = min_finish_id;
                 auto& qps = m_qpGrp->m_qps;
                 for (int i = min_finish_id + 1; i < fcount; i++)
+                {
                     if (!qps[i]->IsFinished())
                     {
-                        if (i == res) // update res to the idx after removing finished qp
+                        if (i == res)
+                        { // update res to the idx after removing finished qp
                             res = nxt;
+                        }
                         qps[nxt] = qps[i];
                         nxt++;
                     }
+                }
                 qps.resize(nxt);
             }
 
@@ -356,7 +363,7 @@ QbbNetDevice::TransmitStart(Ptr<Packet> p)
     Simulator::Schedule(txCompleteTime, &QbbNetDevice::TransmitComplete, this);
 
     bool result = m_channel->TransmitStart(p, this, txTime);
-    if (result == false)
+    if (!result)
     {
         m_phyTxDropTrace(p);
     }
@@ -381,9 +388,13 @@ QbbNetDevice::DequeueAndTransmit(void)
     // std::cout << "dequeue " << std::endl;
     NS_LOG_FUNCTION(this);
     if (!m_linkUp)
+    {
         return; // if link is down, return
+    }
     if (m_txMachineState == BUSY)
+    {
         return; // Quit if channel busy
+    }
     Ptr<Packet> p;
     if (m_node->GetNodeType() == 0)
     {
@@ -440,7 +451,9 @@ QbbNetDevice::DequeueAndTransmit(void)
             {
                 Ptr<RdmaQueuePair> qp = m_rdmaEQ->GetQp(i);
                 if (qp->GetBytesLeft() == 0)
+                {
                     continue;
+                }
                 t = Min(qp->m_nextAvail, t);
             }
             if (m_nextSend.IsExpired() && t < Simulator::GetMaximumSimulationTime() &&
@@ -456,7 +469,7 @@ QbbNetDevice::DequeueAndTransmit(void)
     else
     {                                     // switch, doesn't care about qcn, just send
         p = m_queue->DequeueRR(m_paused); // this is round-robin
-        if (p != 0)
+        if (p)
         {
             m_snifferTrace(p);
             m_promiscSnifferTrace(p);
@@ -493,7 +506,9 @@ QbbNetDevice::DequeueAndTransmit(void)
                 {
                     Ptr<RdmaQueuePair> qp = m_rdmaEQ->GetQp(i);
                     if (qp->GetBytesLeft() == 0)
+                    {
                         continue;
+                    }
                     t = Min(qp->m_nextAvail, t);
                 }
                 if (m_nextSend.IsExpired() && t < Simulator::GetMaximumSimulationTime() &&
@@ -506,7 +521,6 @@ QbbNetDevice::DequeueAndTransmit(void)
             }
         }
     }
-    return;
 }
 
 void
@@ -599,7 +613,9 @@ QbbNetDevice::Receive(Ptr<Packet> packet)
     if (ch.l3Prot == 0xFE)
     { // PFC
         if (!m_qbbEnabled)
+        {
             return;
+        }
         unsigned qIndex = ch.pfc.qIndex;
         if (ch.pfc.time > 0)
         {
@@ -657,7 +673,6 @@ QbbNetDevice::Receive(Ptr<Packet> packet)
             // TODO we may based on the ret do something
         }
     }
-    return;
 }
 
 Address
@@ -685,7 +700,7 @@ QbbNetDevice::Send(Ptr<Packet> packet, const Address& dest, uint16_t protocolNum
     NS_LOG_LOGIC("p=" << packet << ", dest=" << &dest);
     NS_LOG_LOGIC("UID is " << packet->GetUid());
 
-    if (IsLinkUp() == false)
+    if (!IsLinkUp())
     {
         m_macTxDropTrace(packet);
         return false;
@@ -810,12 +825,16 @@ QbbNetDevice::TakeDown()
     { // switch
         // clean the queue
         for (uint32_t i = 0; i < qCnt; i++)
+        {
             m_paused[i] = false;
+        }
         while (1)
         {
             Ptr<Packet> p = m_queue->DequeueRR(m_paused);
             if (p == 0)
+            {
                 break;
+            }
             m_traceDrop(p, m_queue->GetLastQueue());
         }
         // TODO: Notify switch that this link is down
