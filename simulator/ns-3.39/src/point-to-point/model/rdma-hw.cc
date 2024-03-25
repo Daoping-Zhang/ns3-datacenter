@@ -211,42 +211,42 @@ RdmaHw::GetTypeId(void)
             .AddAttribute("SwiftAi",
                           "Swift's additive increment",
                           UintegerValue(0),
-                          MakeIntegerAccessor(&RdmaHw::swift.ai),
-                          MakeIntegerChecker<uint32_t>())
+                          MakeUintegerAccessor(&RdmaHw::swift_ai),
+                          MakeUintegerChecker<uint32_t>())
             .AddAttribute("SwiftBeta",
                           "Swift's multiplicative decrease constant",
                           DoubleValue(0.0),
-                          MakeDoubleAccessor(&RdmaHw::swift.beta),
+                          MakeDoubleAccessor(&RdmaHw::swift_beta),
                           MakeDoubleChecker<double>())
             .AddAttribute("SwiftMaxMdf",
                           "Swift's maximum multiplicative decrease factor",
                           DoubleValue(0.0),
-                          MakeDoubleAccessor(&RdmaHw::swift.max_mdf),
+                          MakeDoubleAccessor(&RdmaHw::swift_max_mdf),
                           MakeDoubleChecker<double>())
             .AddAttribute("SwiftBaseTarget",
                           "Swift's base target RTT",
                           UintegerValue(50),
-                          MakeUintegerAccessor(RdmaHw::swift.base_target),
+                          MakeUintegerAccessor(&RdmaHw::swift_base_target),
                           MakeUintegerChecker<uint32_t>())
             .AddAttribute("SwiftHopScale",
                           "Swift's per hop RTT scaling factor",
                           DoubleValue(0.0),
-                          MakeDoubleAccessor(RdmaHw::swift.hop_scale),
-                          MakeUintegerChecker<double>())
+                          MakeDoubleAccessor(&RdmaHw::swift_hop_scale),
+                          MakeDoubleChecker<double>())
             .AddAttribute("SwiftFsMaxCwnd",
                           "Swift's max cwnd limit that enables flow-based scaling",
                           DoubleValue(0.0),
-                          MakeDoubleAccessor(RdmaHw::swift.fs_max_cwnd),
+                          MakeDoubleAccessor(&RdmaHw::swift_fs_max_cwnd),
                           MakeDoubleChecker<double>())
             .AddAttribute("SwiftFsMinCwnd",
                           "Swift's min cwnd limit that enables flow-based scaling",
                           DoubleValue(0.0),
-                          MakeDoubleAccessor(RdmaHw::swift.fs_min_cwnd),
+                          MakeDoubleAccessor(&RdmaHw::swift_fs_min_cwnd),
                           MakeDoubleChecker<double>())
             .AddAttribute("SwiftFsRange",
                           "Swift's flow-based scheduling max scaling range",
                           DoubleValue(0.0),
-                          MakeDoubleAccessor(RdmaHw::swift.fs_range),
+                          MakeDoubleAccessor(&RdmaHw::swift_fs_range),
                           MakeDoubleChecker<double>());
     return tid;
 }
