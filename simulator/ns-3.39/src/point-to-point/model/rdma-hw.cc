@@ -7,6 +7,7 @@
 #include "ns3/boolean.h"
 #include "ns3/data-rate.h"
 #include "ns3/double.h"
+#include "ns3/feedback-tag.h"
 #include "ns3/pointer.h"
 #include "ns3/ppp-header.h"
 #include "ns3/uinteger.h"
@@ -17,6 +18,8 @@
 #include <ns3/udp-header.h>
 
 #include <cstdint>
+#include <iostream>
+#include <ostream>
 
 namespace ns3
 {
@@ -204,20 +207,46 @@ RdmaHw::GetTypeId(void)
                           BooleanValue(false),
                           MakeBooleanAccessor(&RdmaHw::PowerTCPdelay),
                           MakeBooleanChecker())
+            // TODO: confirm Swift's param
             .AddAttribute("SwiftAi",
                           "Swift's additive increment",
                           UintegerValue(0),
-                          MakeIntegerAccessor(&RdmaHw::swift_ai),
+                          MakeIntegerAccessor(&RdmaHw::swift.ai),
                           MakeIntegerChecker<uint32_t>())
             .AddAttribute("SwiftBeta",
                           "Swift's multiplicative decrease constant",
                           DoubleValue(0.0),
-                          MakeDoubleAccessor(&RdmaHw::swift_beta),
+                          MakeDoubleAccessor(&RdmaHw::swift.beta),
                           MakeDoubleChecker<double>())
             .AddAttribute("SwiftMaxMdf",
                           "Swift's maximum multiplicative decrease factor",
                           DoubleValue(0.0),
-                          MakeDoubleAccessor(&RdmaHw::swift_max_mdf),
+                          MakeDoubleAccessor(&RdmaHw::swift.max_mdf),
+                          MakeDoubleChecker<double>())
+            .AddAttribute("SwiftBaseTarget",
+                          "Swift's base target RTT",
+                          UintegerValue(50),
+                          MakeUintegerAccessor(RdmaHw::swift.base_target),
+                          MakeUintegerChecker<uint32_t>())
+            .AddAttribute("SwiftHopScale",
+                          "Swift's per hop RTT scaling factor",
+                          DoubleValue(0.0),
+                          MakeDoubleAccessor(RdmaHw::swift.hop_scale),
+                          MakeUintegerChecker<double>())
+            .AddAttribute("SwiftFsMaxCwnd",
+                          "Swift's max cwnd limit that enables flow-based scaling",
+                          DoubleValue(0.0),
+                          MakeDoubleAccessor(RdmaHw::swift.fs_max_cwnd),
+                          MakeDoubleChecker<double>())
+            .AddAttribute("SwiftFsMinCwnd",
+                          "Swift's min cwnd limit that enables flow-based scaling",
+                          DoubleValue(0.0),
+                          MakeDoubleAccessor(RdmaHw::swift.fs_min_cwnd),
+                          MakeDoubleChecker<double>())
+            .AddAttribute("SwiftFsRange",
+                          "Swift's flow-based scheduling max scaling range",
+                          DoubleValue(0.0),
+                          MakeDoubleAccessor(RdmaHw::swift.fs_range),
                           MakeDoubleChecker<double>());
     return tid;
 }
@@ -1957,6 +1986,16 @@ RdmaHw::UpdateRateHpPint(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch,
             }
         }
     }
+}
+
+/*********************
+ * Swift
+ ********************/
+
+void
+RdmaHw::HandleAckSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
+{
+    auto hops = ch.ack.ih.swift.nhop;
 }
 
 } // namespace ns3

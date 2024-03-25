@@ -205,9 +205,21 @@ class RdmaHw : public Object
     /*********************
      * Swift
      ********************/
-    uint32_t swift_ai;    // additive increment
-    double swift_beta;    // multiplicative decrease constant
-    double swift_max_mdf; // max multiplicative decrease factor
+    static struct
+    {
+        uint32_t ai;          // additive increment
+        double beta;          // multiplicative decrease constant
+        double max_mdf;       // max multiplicative decrease factor
+        uint32_t base_target; // base target RTT
+        double hop_scale;     // per hop RTT scaling factor, i.e. ℏ in paper
+        double fs_max_cwnd,
+            fs_min_cwnd; // max and min cwnd range that flow-based scaling takes effect
+        double fs_range; // flow-based scaling max scaling range
+    } swift;
+
+    void HandleAckSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch);
+    void UpdateRateSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, bool fast_react);
+    void FastReactSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch);
 };
 
 enum CC_MODE
