@@ -1210,21 +1210,28 @@ main(int argc, char* argv[])
     // set int_multi
     IntHop::multi = int_multi;
     // IntHeader::mode
-    if (cc_mode == CC_MODE::TIMELY || cc_mode == CC_MODE::PATCHED_TIMELY)
-    { // timely or patched timely, use ts
-        IntHeader::mode = IntHeader::TS;
-    }
-    else if (cc_mode == CC_MODE::POWERTCP)
-    { // hpcc, powertcp, use int
-        IntHeader::mode = IntHeader::NORMAL;
-    }
-    else if (cc_mode == CC_MODE::HPCC_PINT)
-    { // hpcc-pint
-        IntHeader::mode = IntHeader::PINT;
-    }
-    else
-    { // others, no extra header
-        IntHeader::mode = IntHeader::NONE;
+    switch (cc_mode)
+    {
+        case CC_MODE::TIMELY:
+        case CC_MODE::PATCHED_TIMELY:
+            // timely or patched timely, use ts
+            IntHeader::mode = IntHeader::TS;
+            break;
+        case CC_MODE::POWERTCP:
+            // hpcc, powertcp, use int
+            IntHeader::mode = IntHeader::NORMAL;
+            break;
+        case CC_MODE::HPCC_PINT:
+            // hpcc-pint
+            IntHeader::mode = IntHeader::PINT;
+            break;
+        case CC_MODE::SWIFT:
+            IntHeader::mode = IntHeader::SWIFT;
+            break;
+        default:
+            // others, no extra header
+            IntHeader::mode = IntHeader::NONE;
+            break;
     }
 
     // Set Pint
