@@ -476,7 +476,6 @@ RdmaHw::ReceiveUdp(Ptr<Packet> p, CustomHeader& ch)
     rxQp->m_milestone_rx = m_ack_interval;
 
     int x = ReceiverCheckSeq(ch.udp.seq, rxQp, payload_size);
-    std::cout << "Receive UDP, seq = " << ch.udp.seq << std::endl;
     if (x == 1 || x == 2)
     { // generate ACK or NACK
         qbbHeader seqh;
@@ -567,7 +566,8 @@ RdmaHw::ReceiveCnp(Ptr<Packet> p, CustomHeader& ch)
         {
             qp->hpccPint.m_curRate = dev->GetDataRate();
         }
-        else if (m_cc_mode == CC_MODE::SWIFT) {
+        else if (m_cc_mode == CC_MODE::SWIFT)
+        {
             qp->swift.m_curRate = dev->GetDataRate();
         }
     }
@@ -580,7 +580,6 @@ RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader& ch)
     uint16_t qIndex = ch.ack.pg;
     uint16_t port = ch.ack.dport;
     uint32_t seq = ch.ack.seq;
-    std::cout << "Received ACK, seq=" << ch.ack.seq << std::endl;
     uint8_t cnp = (ch.ack.flags >> qbbHeader::FLAG_CNP) & 1;
     int i;
     Ptr<RdmaQueuePair> qp = GetQp(ch.sip, port, qIndex);
@@ -2005,6 +2004,8 @@ RdmaHw::UpdateRateHpPint(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch,
 void
 RdmaHw::HandleAckSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
 {
+    auto hopCount = ch.ack.ih.swift.nhop;
+    std::cout << "Hops: " << hopCount << std::endl;
     uint32_t ack_seq = ch.ack.seq;
     // update rate
     if (ack_seq > qp->swift.m_lastUpdateSeq)
@@ -2021,8 +2022,6 @@ void
 RdmaHw::UpdateRateSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, bool fast_react)
 {
     auto next_seq = qp->snd_nxt;
-    auto hopCount = ch.ack.ih.swift.nhop;
-    std::cout << "Hops: " << hopCount << std::endl;
     // ChangeRate(qp, qp->m_rate);
     qp->swift.m_lastUpdateSeq = next_seq;
     qp->m_rate = qp->m_max_rate;

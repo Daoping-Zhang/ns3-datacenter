@@ -21,6 +21,8 @@
 #include "ns3/unsched-tag.h"
 
 #include <cmath>
+#include <iostream>
+#include <ostream>
 
 namespace ns3
 {
@@ -346,8 +348,10 @@ SwitchNode::SwitchNotifyDequeue(uint32_t ifIndex, uint32_t qIndex, Ptr<Packet> p
     if (1)
     {
         uint8_t* buf = p->GetBuffer();
-        if (buf[PppHeader::GetStaticSize() + 9] == 0x11)
-        { // udp packet
+        auto l3proto = buf[PppHeader::GetStaticSize() + 9];
+        switch (l3proto)
+        {
+        case 0x11: { // udp packet
             IntHeader* ih = (IntHeader*)&buf[PppHeader::GetStaticSize() + 20 + 8 +
                                              6]; // ppp, ip, udp, SeqTs, INT
             Ptr<QbbNetDevice> dev = DynamicCast<QbbNetDevice>(m_devices[ifIndex]);
@@ -450,10 +454,21 @@ SwitchNode::SwitchNotifyDequeue(uint32_t ifIndex, uint32_t qIndex, Ptr<Packet> p
                 m_u[ifIndex] = newU;
                 break;
             }
-            case SWIFT:
-                // hop + 1
-                ih->IncrementHop();
-                break;
+            // case SWIFT: {
+            //     CustomHeader ch;
+            //     if (ch.l3Prot != 0xfc)
+            //     { // only modify ack
+            //         std::cout << "l3proto=" << ch.l3Prot << ", skipping" << std::endl;
+            //         break;
+            //     }
+            //     // std::cout<<"Current hop: "<<ih->swift.nhop<<", uid:"<<p->GetUid()<<std::endl;
+            //     // hop + 1
+            //     ih->IncrementHop();
+            //     // std::cout<<"Current hop: "<<ih->swift.nhop<<", uid:"<<p->GetUid()<<std::endl;
+            //     std::cout << "Sniffed hop:" << ch.ack.ih.swift.nhop
+            //               << " Changed hop:" << ih->swift.nhop << std::endl;
+            //     break;
+            // }
             default:
                 FeedbackTag Int;
                 bool found;
@@ -474,6 +489,19 @@ SwitchNode::SwitchNotifyDequeue(uint32_t ifIndex, uint32_t qIndex, Ptr<Packet> p
                     p->ReplacePacketTag(Int); // replacing the tag with new values
                     // std::cout << "found " << Int.getHopCount() << std::endl;
                 }
+            }
+            break;
+        }
+        case 0xfc: // ACK
+            IntHeader* ih =
+                (IntHeader*)&buf[PppHeader::GetStaticSize() + 20 + 8 + 6]; // ppp, ip, offset
+            switch (m_ccMode)
+            {
+            case CC_MODE::SWIFT: {
+                // std::cout << "nhop: " << ih->swift.nhop << " " << std::endl;
+                ih->swift.nhop++;
+                break;
+            }
             }
         }
     }
