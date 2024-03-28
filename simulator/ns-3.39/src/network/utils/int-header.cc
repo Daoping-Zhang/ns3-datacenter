@@ -87,8 +87,8 @@ IntHeader::Serialize(Buffer::Iterator start) const
         break;
     case SWIFT:
         // TODO: SWIFT serialization
-        i.WriteU32(swift.remote_delay);
-        i.WriteU32(swift.ts);
+        i.WriteU64(swift.remote_delay);
+        i.WriteU64(swift.ts);
         i.WriteU32(swift.nhop);
         break;
     default:
@@ -125,8 +125,8 @@ IntHeader::Deserialize(Buffer::Iterator start)
         break;
     case SWIFT:
         swift.nhop=i.ReadU32();
-        swift.ts=i.ReadU32();
-        swift.remote_delay=i.ReadU32();
+        swift.ts=i.ReadU64();
+        swift.remote_delay=i.ReadU64();
         break;
     default:
         break;

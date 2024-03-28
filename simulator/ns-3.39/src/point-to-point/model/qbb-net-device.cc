@@ -19,6 +19,7 @@
  * Modified (by Vamsi Addanki) to also serve TCP/IP traffic.
  */
 
+#include "rdma-hw.h"
 #include <ostream>
 #define __STDC_LIMIT_MACROS 1
 #include "ns3/assert.h"
@@ -643,8 +644,9 @@ QbbNetDevice::Receive(Ptr<Packet> packet)
             cp->RemoveHeader(ph);
             Ipv4Header ih;
             cp->RemoveHeader(ih);
-            if (ih.GetProtocol() == 0x06)
+            switch (ih.GetProtocol())
             {
+            case 0x06: { // TCP
                 m_snifferTrace(packet);
                 m_promiscSnifferTrace(packet);
                 m_phyRxEndTrace(packet);
@@ -664,9 +666,15 @@ QbbNetDevice::Receive(Ptr<Packet> packet)
                 }
                 m_macRxTrace(originalPacket);
                 m_rxCallback(this, packet, prot, GetRemote());
+                break;
             }
-            else
-            {
+            case 0x11: // UDP
+            // for Swift CC UDP, set ih.swift.remote_delay to current timestamp
+            if(IntHeader::mode == IntHeader::SWIFT) {
+                ch.udp.ih.swift.remote_delay = Simulator::Now().GetTimeStep();
+            }
+            // no break here, keep the ret value
+            default:
                 // send to RdmaHw
                 ret = m_rdmaReceiveCb(packet, ch);
             }
