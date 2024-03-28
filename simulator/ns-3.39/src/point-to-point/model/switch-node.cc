@@ -493,8 +493,8 @@ SwitchNode::SwitchNotifyDequeue(uint32_t ifIndex, uint32_t qIndex, Ptr<Packet> p
             break;
         }
         case 0xfc: // ACK
-            IntHeader* ih =
-                (IntHeader*)&buf[PppHeader::GetStaticSize() + 20 + 8 + 6]; // ppp, ip, offset
+                   // I don't know why, got this offset by enumerating
+            IntHeader* ih = (IntHeader*)&buf[PppHeader::GetStaticSize() + 20 + 4];
             switch (m_ccMode)
             {
             case CC_MODE::SWIFT: {

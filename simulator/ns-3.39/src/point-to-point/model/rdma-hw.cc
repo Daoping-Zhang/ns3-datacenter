@@ -483,7 +483,7 @@ RdmaHw::ReceiveUdp(Ptr<Packet> p, CustomHeader& ch)
         seqh.SetPG(ch.udp.pg);
         seqh.SetSport(ch.udp.dport);
         seqh.SetDport(ch.udp.sport);
-        seqh.SetIntHeader(ch.udp.ih);
+        seqh.SetIntHeader(ch.udp.ih); // ACK will preserve the INT header from the UDP
         if (ecnbits)
         {
             seqh.SetCnp();

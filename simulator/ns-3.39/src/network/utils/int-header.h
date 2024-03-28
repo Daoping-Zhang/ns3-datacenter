@@ -159,7 +159,8 @@ class IntHeader
             // sent timestamp
             uint32_t ts;
             // hop count
-            uint64_t nhop;
+            // required no internal padding, so outside padding?
+            uint32_t nhop;
         } swift;
     };
 
