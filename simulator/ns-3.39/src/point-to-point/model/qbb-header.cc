@@ -4,6 +4,7 @@
 #include "ns3/buffer.h"
 #include "ns3/log.h"
 
+#include <cstdint>
 #include <iostream>
 #include <stdint.h>
 
@@ -15,19 +16,19 @@ namespace ns3
 NS_OBJECT_ENSURE_REGISTERED(qbbHeader);
 
 qbbHeader::qbbHeader(uint16_t pg)
-    : m_pg(pg),
-      sport(0),
+    : sport(0),
       dport(0),
       flags(0),
+      m_pg(pg),
       m_seq(0)
 {
 }
 
 qbbHeader::qbbHeader()
-    : m_pg(0),
-      sport(0),
+    : sport(0),
       dport(0),
       flags(0),
+      m_pg(0),
       m_seq(0)
 {
 }
@@ -77,6 +78,15 @@ void
 qbbHeader::SetIntHeader(const IntHeader& _ih)
 {
     ih = _ih;
+}
+
+// Set swift endpoint delay duration, pass sending timestamp
+void
+qbbHeader::SetSwiftEndDelay(const uint32_t t4)
+{
+    auto swift = &(this->ih.swift);
+    auto t2 = swift->remote_delay;
+    swift->remote_delay = t4 - t2;
 }
 
 uint16_t

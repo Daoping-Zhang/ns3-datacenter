@@ -19,6 +19,11 @@
  * Modified (by Vamsi Addanki) to also serve TCP/IP traffic.
  */
 
+#include "ppp-header.h"
+#include "qbb-header.h"
+
+#include <cassert>
+#include <cstdint>
 #include <ostream>
 #define __STDC_LIMIT_MACROS 1
 #include "ns3/assert.h"
@@ -115,6 +120,25 @@ RdmaEgressQueue::DequeueQindex(int qIndex)
         return p;
     }
     return 0;
+}
+
+void
+SwiftCalcEndpointDelay(Ptr<Packet> p)
+{
+    PppHeader ph;
+    p->RemoveHeader(ph);
+    Ipv4Header iph;
+    p->RemoveHeader(iph);
+    if (iph.GetProtocol() == 0xFC)
+    { // sending an ACK
+        qbbHeader qh;
+        p->RemoveHeader(qh);
+        auto t4 = (uint32_t)Simulator::Now().GetNanoSeconds();
+        qh.SetSwiftEndDelay(t4);
+        p->AddHeader(qh);
+    }
+    p->AddHeader(iph);
+    p->AddHeader(ph);
 }
 
 int
@@ -396,7 +420,7 @@ QbbNetDevice::DequeueAndTransmit(void)
         return; // Quit if channel busy
     }
     Ptr<Packet> p;
-    if (m_node->GetNodeType() == 0)
+    if (m_node->GetNodeType() == 0) // NIC
     {
         int qIndex = m_rdmaEQ->GetNextQindex(m_paused);
         // std::cout << "qIndex " << qIndex << std::endl;
@@ -405,6 +429,10 @@ QbbNetDevice::DequeueAndTransmit(void)
             if (qIndex == -1)
             { // high prio
                 p = m_rdmaEQ->DequeueQindex(qIndex);
+                if (IntHeader::mode == IntHeader::SWIFT)
+                { // those ACKs will be put in high priority queue
+                    SwiftCalcEndpointDelay(p);
+                }
                 m_traceDequeue(p, 0);
                 TransmitStart(p);
                 numTxBytes += p->GetSize();
@@ -667,12 +695,13 @@ QbbNetDevice::Receive(Ptr<Packet> packet)
                 m_rxCallback(this, packet, prot, GetRemote());
                 break;
             }
-            case 0x11: // udp
-            // for Swift CC UDP, set ih.swift.remote_delay to current nanosecond
-            // This is purposed truncate because I'm too lazy to debug
-            if(IntHeader::mode==IntHeader::SWIFT) {
-                ch.udp.ih.swift.remote_delay = (int32_t)Simulator::Now().GetNanoSeconds();
-            }
+            case 0x11: // UDP
+                // for Swift CC UDP, set ih.swift.remote_delay to current timestamp
+                if (IntHeader::mode == IntHeader::SWIFT)
+                {
+                    ch.udp.ih.swift.remote_delay = Simulator::Now().GetNanoSeconds();
+                }
+            // no break here, keep the ret value
             default:
                 // send to RdmaHw
                 ret = m_rdmaReceiveCb(packet, ch);

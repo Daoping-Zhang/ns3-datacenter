@@ -2004,8 +2004,8 @@ RdmaHw::UpdateRateHpPint(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch,
 void
 RdmaHw::HandleAckSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
 {
-    auto hopCount = ch.ack.ih.swift.nhop;
-    std::cout << "Hops: " << hopCount << std::endl;
+    auto ih = ch.ack.ih.swift;
+    std::cout << "Hops: " << ih.nhop << ", Remote Delay: " << ih.remote_delay << std::endl;
     uint32_t ack_seq = ch.ack.seq;
     // update rate
     if (ack_seq > qp->swift.m_lastUpdateSeq)
