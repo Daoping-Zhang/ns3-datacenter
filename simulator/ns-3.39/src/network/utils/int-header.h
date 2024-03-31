@@ -155,9 +155,9 @@ class IntHeader
         struct
         {
             // remote queueing delay
-            uint64_t remote_delay;
+            uint32_t remote_delay;
             // sent timestamp
-            uint64_t ts;
+            uint32_t ts;
             // hop count
             // required no internal padding, so outside padding?
             uint32_t nhop;
