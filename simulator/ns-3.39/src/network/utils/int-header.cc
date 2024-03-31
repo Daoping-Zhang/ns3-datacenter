@@ -1,7 +1,4 @@
 #include "int-header.h"
-#include <cstring>
-#include <iostream>
-#include <ostream>
 
 namespace ns3
 {
@@ -86,10 +83,9 @@ IntHeader::Serialize(Buffer::Iterator start) const
         }
         break;
     case SWIFT:
-        // TODO: SWIFT serialization
-        i.WriteU32(swift.remote_delay);
-        i.WriteU32(swift.ts);
         i.WriteU32(swift.nhop);
+        i.WriteU32(swift.ts);
+        i.WriteU32(swift.remote_delay);
         break;
     default:
         break;
@@ -124,9 +120,9 @@ IntHeader::Deserialize(Buffer::Iterator start)
         }
         break;
     case SWIFT:
-        swift.nhop=i.ReadU32();
-        swift.ts=i.ReadU32();
-        swift.remote_delay=i.ReadU32();
+        swift.nhop = i.ReadU32();
+        swift.ts = i.ReadU32();
+        swift.remote_delay = i.ReadU32();
         break;
     default:
         break;

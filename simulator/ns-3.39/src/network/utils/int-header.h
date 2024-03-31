@@ -161,7 +161,7 @@ class IntHeader
             // hop count
             // required no internal padding, so outside padding?
             uint32_t nhop;
-        } swift;
+        } swift; // WARNING: Swift fields are serialized and de- in REVERSE ORDER.
     };
 
     IntHeader();

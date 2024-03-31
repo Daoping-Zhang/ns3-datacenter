@@ -643,8 +643,9 @@ QbbNetDevice::Receive(Ptr<Packet> packet)
             cp->RemoveHeader(ph);
             Ipv4Header ih;
             cp->RemoveHeader(ih);
-            if (ih.GetProtocol() == 0x06)
+            switch (ih.GetProtocol())
             {
+            case 0x06: { // tcp
                 m_snifferTrace(packet);
                 m_promiscSnifferTrace(packet);
                 m_phyRxEndTrace(packet);
@@ -664,9 +665,15 @@ QbbNetDevice::Receive(Ptr<Packet> packet)
                 }
                 m_macRxTrace(originalPacket);
                 m_rxCallback(this, packet, prot, GetRemote());
+                break;
             }
-            else
-            {
+            case 0x11: // udp
+            // for Swift CC UDP, set ih.swift.remote_delay to current nanosecond
+            // This is purposed truncate because I'm too lazy to debug
+            if(IntHeader::mode==IntHeader::SWIFT) {
+                ch.udp.ih.swift.remote_delay = (int32_t)Simulator::Now().GetNanoSeconds();
+            }
+            default:
                 // send to RdmaHw
                 ret = m_rdmaReceiveCb(packet, ch);
             }
