@@ -79,6 +79,10 @@ RdmaQueuePair::RdmaQueuePair(uint16_t pg,
 
     swift.m_lastUpdateSeq = 0;
     swift.m_lastEndpointDelay = 0;
+    swift.m_t_last_decrease = 0;
+    swift.m_curRate = 0;
+    swift.m_retransmit_cnt = 0;
+    swift.m_cwnd_prev = 0;
 }
 
 void

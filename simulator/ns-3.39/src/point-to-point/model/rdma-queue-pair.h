@@ -9,6 +9,7 @@
 #include <ns3/object.h>
 #include <ns3/packet.h>
 
+#include <cstdint>
 #include <vector>
 // vamsi
 #include <map>
@@ -134,6 +135,14 @@ class RdmaQueuePair : public Object
         uint32_t m_lastEndpointDelay;
         // current rate
         DataRate m_curRate;
+        // retransmit time count
+        uint16_t m_retransmit_cnt;
+        // previous cwnd
+        double m_cwnd_prev;
+        // time (nanosecond) of last Multiple Decrease
+        uint64_t m_t_last_decrease;
+        // pacing delay, i.e. sending interval
+        uint64_t m_pacing_delay;
     } swift;
 
     /***********

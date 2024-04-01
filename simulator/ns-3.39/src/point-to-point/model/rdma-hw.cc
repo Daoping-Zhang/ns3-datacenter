@@ -17,6 +17,7 @@
 #include <ns3/simulator.h>
 #include <ns3/udp-header.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <iostream>
 #include <ostream>
@@ -247,7 +248,18 @@ RdmaHw::GetTypeId(void)
                           "Swift's flow-based scheduling max scaling range",
                           DoubleValue(0.0),
                           MakeDoubleAccessor(&RdmaHw::swift_fs_range),
+                          MakeDoubleChecker<double>())
+            .AddAttribute("SwiftMinCwnd",
+                          "Swift's min cwnd it can exceed (not fs)",
+                          DoubleValue(0.0),
+                          MakeDoubleAccessor(&RdmaHw::swift_min_cwnd),
+                          MakeDoubleChecker<double>())
+            .AddAttribute("SwiftMaxCwnd",
+                          "Swift's max cwnd it can exceed (not fs)",
+                          DoubleValue(0.0),
+                          MakeDoubleAccessor(&RdmaHw::swift_max_cwnd),
                           MakeDoubleChecker<double>());
+
     return tid;
 }
 
@@ -2007,24 +2019,71 @@ RdmaHw::HandleAckSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
     auto ih = ch.ack.ih.swift;
     std::cout << "Hops: " << ih.nhop << ", Remote Delay: " << ih.remote_delay << std::endl;
     uint32_t ack_seq = ch.ack.seq;
-    // update rate
-    if (ack_seq > qp->swift.m_lastUpdateSeq)
-    { // if full RTT feedback is ready, do full update
-        UpdateRateSwift(qp, p, ch, false);
+    bool canDecrease = false; //
+    if (ih.remote_delay > qp->swift.m_t_last_decrease)
+    {
+        // at this moment, remote_delay is sending timestamp
+        canDecrease = true;
+    }
+    auto rtt = (uint32_t)Simulator::Now().GetNanoSeconds() - ih.ts;
+    auto fabric_delay = rtt - ih.remote_delay;
+
+    // on receiving ack
+    qp->swift.m_retransmit_cnt = 0;
+    auto target_fab_delay = TargetFabDelaySwift(qp, p, ch);
+    auto fab_cwnd = GetCwndSwift(qp, p, ch, target_fab_delay, fabric_delay);
+    auto endpoint_cwnd = GetCwndSwift(qp, p, ch, 0, ih.remote_delay);
+
+    auto cwnd =
+        std::min(swift_min_cwnd, std::max(swift_max_cwnd, std::min(fab_cwnd, endpoint_cwnd)));
+    if (cwnd < qp->swift.m_cwnd_prev)
+    {
+        qp->swift.m_t_last_decrease = Simulator::Now().GetNanoSeconds();
+    }
+    if (cwnd < 1)
+    {
+        qp->swift.m_pacing_delay = rtt * 1.0 / cwnd;
     }
     else
-    { // do fast react
-      // TODO
+    {
+        qp->swift.m_pacing_delay = 0;
     }
 }
 
-void
-RdmaHw::UpdateRateSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, bool fast_react)
+// calculate target fabric delay
+uint64_t
+RdmaHw::TargetFabDelaySwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
 {
-    auto next_seq = qp->snd_nxt;
-    // ChangeRate(qp, qp->m_rate);
-    qp->swift.m_lastUpdateSeq = next_seq;
-    qp->m_rate = qp->m_max_rate;
+    return 0;
+}
+
+// calculate cwnd for fabric/endpoint
+double
+RdmaHw::GetCwndSwift(Ptr<RdmaQueuePair> qp,
+                     Ptr<Packet> p,
+                     CustomHeader& ch,
+                     uint64_t target_delay,
+                     uint64_t curr_delay) const
+{
+    bool canDecrease = ch.ack.ih.swift.remote_delay > qp->swift.m_t_last_decrease;
+    double cwnd = qp->swift.m_cwnd_prev;
+    if (curr_delay < target_delay)
+    {
+        if (cwnd >= 1)
+        {
+            cwnd = cwnd + swift_ai / cwnd * 1; // TODO: num_acked
+        }
+        else
+        {
+            cwnd = cwnd + swift_ai * 1;
+        }
+    }
+    else if (canDecrease)
+    {
+        cwnd =
+            std::max(1 - swift_beta * (curr_delay - target_delay) / curr_delay, 1 - swift_max_mdf);
+    }
+    return cwnd;
 }
 
 } // namespace ns3
