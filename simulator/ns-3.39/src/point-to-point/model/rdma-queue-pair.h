@@ -143,6 +143,8 @@ class RdmaQueuePair : public Object
         uint64_t m_t_last_decrease;
         // pacing delay, i.e. sending interval
         uint64_t m_pacing_delay;
+        // num of acked packets
+        uint64_t num_acked;
     } swift;
 
     /***********

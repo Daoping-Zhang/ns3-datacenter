@@ -18,6 +18,7 @@
 #include <ns3/udp-header.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <iostream>
 #include <ostream>
@@ -208,57 +209,63 @@ RdmaHw::GetTypeId(void)
                           BooleanValue(false),
                           MakeBooleanAccessor(&RdmaHw::PowerTCPdelay),
                           MakeBooleanChecker())
-            // TODO: confirm Swift's param
+            // Swift parameters from code of paper Burst-tolerant datacenter networks with Vertigo
             .AddAttribute("SwiftAi",
                           "Swift's additive increment",
-                          UintegerValue(0),
+                          UintegerValue(1),
                           MakeUintegerAccessor(&RdmaHw::swift_ai),
                           MakeUintegerChecker<uint32_t>())
             .AddAttribute("SwiftBeta",
                           "Swift's multiplicative decrease constant",
-                          DoubleValue(0.0),
+                          DoubleValue(0.8),
                           MakeDoubleAccessor(&RdmaHw::swift_beta),
                           MakeDoubleChecker<double>())
             .AddAttribute("SwiftMaxMdf",
                           "Swift's maximum multiplicative decrease factor",
-                          DoubleValue(0.0),
+                          DoubleValue(0.5),
                           MakeDoubleAccessor(&RdmaHw::swift_max_mdf),
                           MakeDoubleChecker<double>())
             .AddAttribute("SwiftBaseTarget",
-                          "Swift's base target RTT",
-                          UintegerValue(50),
+                          "Swift's base fabric target RTT (ns)",
+                          UintegerValue(60000),
                           MakeUintegerAccessor(&RdmaHw::swift_base_target),
                           MakeUintegerChecker<uint32_t>())
             .AddAttribute("SwiftHopScale",
                           "Swift's per hop RTT scaling factor",
-                          DoubleValue(0.0),
+                          DoubleValue(0.000030),
                           MakeDoubleAccessor(&RdmaHw::swift_hop_scale),
                           MakeDoubleChecker<double>())
             .AddAttribute("SwiftFsMaxCwnd",
                           "Swift's max cwnd limit that enables flow-based scaling",
-                          DoubleValue(0.0),
+                          DoubleValue(100.0),
                           MakeDoubleAccessor(&RdmaHw::swift_fs_max_cwnd),
                           MakeDoubleChecker<double>())
             .AddAttribute("SwiftFsMinCwnd",
                           "Swift's min cwnd limit that enables flow-based scaling",
-                          DoubleValue(0.0),
+                          DoubleValue(0.1),
                           MakeDoubleAccessor(&RdmaHw::swift_fs_min_cwnd),
                           MakeDoubleChecker<double>())
             .AddAttribute("SwiftFsRange",
                           "Swift's flow-based scheduling max scaling range",
-                          DoubleValue(0.0),
+                          DoubleValue(0.000300),
                           MakeDoubleAccessor(&RdmaHw::swift_fs_range),
                           MakeDoubleChecker<double>())
             .AddAttribute("SwiftMinCwnd",
                           "Swift's min cwnd it can exceed (not fs)",
-                          DoubleValue(0.0),
+                          DoubleValue(0.001),
                           MakeDoubleAccessor(&RdmaHw::swift_min_cwnd),
                           MakeDoubleChecker<double>())
             .AddAttribute("SwiftMaxCwnd",
                           "Swift's max cwnd it can exceed (not fs)",
-                          DoubleValue(0.0),
+                          DoubleValue(43),
                           MakeDoubleAccessor(&RdmaHw::swift_max_cwnd),
-                          MakeDoubleChecker<double>());
+                          MakeDoubleChecker<double>())
+            // seems that in emulator there is no endpoint delay
+            .AddAttribute("SwiftTargetEndpointDelay",
+                          "Swift's target endpoint delay (ns)",
+                          UintegerValue(1000000),
+                          MakeUintegerAccessor(&RdmaHw::swift_target_endpoint_delay),
+                          MakeUintegerChecker<uint64_t>());
 
     return tid;
 }
@@ -2019,12 +2026,6 @@ RdmaHw::HandleAckSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
     auto ih = ch.ack.ih.swift;
     std::cout << "Hops: " << ih.nhop << ", Remote Delay: " << ih.remote_delay << std::endl;
     uint32_t ack_seq = ch.ack.seq;
-    bool canDecrease = false; //
-    if (ih.remote_delay > qp->swift.m_t_last_decrease)
-    {
-        // at this moment, remote_delay is sending timestamp
-        canDecrease = true;
-    }
     auto rtt = (uint32_t)Simulator::Now().GetNanoSeconds() - ih.ts;
     auto fabric_delay = rtt - ih.remote_delay;
 
@@ -2032,8 +2033,8 @@ RdmaHw::HandleAckSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
     qp->swift.m_retransmit_cnt = 0;
     auto target_fab_delay = TargetFabDelaySwift(qp, p, ch);
     auto fab_cwnd = GetCwndSwift(qp, p, ch, target_fab_delay, fabric_delay);
-    auto endpoint_cwnd = GetCwndSwift(qp, p, ch, 0, ih.remote_delay);
-
+    auto endpoint_cwnd = GetCwndSwift(qp, p, ch, swift_target_endpoint_delay, ih.remote_delay);
+    // cap max and min cwnd, and get the lower one in fab and endpoint
     auto cwnd =
         std::min(swift_min_cwnd, std::max(swift_max_cwnd, std::min(fab_cwnd, endpoint_cwnd)));
     if (cwnd < qp->swift.m_cwnd_prev)
@@ -2048,13 +2049,25 @@ RdmaHw::HandleAckSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
     {
         qp->swift.m_pacing_delay = 0;
     }
+    // set cwnd
+    if (cwnd > 1)
+    {
+        qp->SetWin((uint32_t)cwnd);
+    }
 }
 
 // calculate target fabric delay
 uint64_t
-RdmaHw::TargetFabDelaySwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
+RdmaHw::TargetFabDelaySwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch) const
 {
-    return 0;
+    double fcwnd = 0.0;
+    auto num_hops = ch.ack.ih.swift.nhop;
+    auto alpha =
+        swift_fs_range / (std::pow(swift_fs_min_cwnd, -0.5) - std::pow(swift_fs_max_cwnd, -0.5));
+    auto beta = -1 * alpha / std::sqrt(swift_fs_max_cwnd);
+    auto t = swift_base_target + num_hops * swift_hop_scale +
+             std::max(0.0, std::min(swift_fs_range, alpha * std::pow(fcwnd, -0.5) + beta));
+    return t;
 }
 
 // calculate cwnd for fabric/endpoint
@@ -2081,7 +2094,8 @@ RdmaHw::GetCwndSwift(Ptr<RdmaQueuePair> qp,
     else if (canDecrease)
     {
         cwnd =
-            std::max(1 - swift_beta * (curr_delay - target_delay) / curr_delay, 1 - swift_max_mdf);
+            std::max(1 - swift_beta * (curr_delay - target_delay) / curr_delay, 1 - swift_max_mdf) *
+            cwnd;
     }
     return cwnd;
 }

@@ -215,12 +215,17 @@ class RdmaHw : public Object
     double swift_fs_range; // flow-based scaling max scaling range
     double swift_min_cwnd; // min cwnd Swift can exceed (not fs)
     double swift_max_cwnd; // max cwnd Swift can exceed (not fs)
+    double swift_target_endpoint_delay; // target endpoint delay
 
     void HandleAckSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch);
     void UpdateRateSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, bool fast_react);
     void FastReactSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch);
-    uint64_t TargetFabDelaySwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch);
-    double GetCwndSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch,uint64_t target_delay,uint64_t curr_delay) const;
+    uint64_t TargetFabDelaySwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch) const;
+    double GetCwndSwift(Ptr<RdmaQueuePair> qp,
+                        Ptr<Packet> p,
+                        CustomHeader& ch,
+                        uint64_t target_delay,
+                        uint64_t curr_delay) const;
 };
 
 enum CC_MODE
