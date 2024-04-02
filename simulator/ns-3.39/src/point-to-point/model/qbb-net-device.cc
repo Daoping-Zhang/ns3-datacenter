@@ -93,6 +93,8 @@ RdmaEgressQueue::RdmaEgressQueue()
         QueueSizeValue(QueueSize(BYTES, 0xffffffff))); // queue limit is on a higher level, not here
 }
 
+// Dequeues a packet from a specified queue index, managing the transmission based on priority and
+// congestion state.
 Ptr<Packet>
 RdmaEgressQueue::DequeueQindex(int qIndex)
 {
@@ -141,6 +143,8 @@ SwiftCalcEndpointDelay(Ptr<Packet> p)
     p->AddHeader(ph);
 }
 
+// Determines the next queue index from which to dequeue a packet for transmission, based on
+// priority and whether the queue is paused due to PFC.
 int
 RdmaEgressQueue::GetNextQindex(bool paused[])
 {
@@ -219,12 +223,16 @@ RdmaEgressQueue::GetNextQindex(bool paused[])
     return res;
 }
 
+// Retrieves the last queue index that was used for dequeuing, potentially for logging or further
+// decision-making processes.
 int
 RdmaEgressQueue::GetLastQueue()
 {
     return m_qlast;
 }
 
+// Returns the number of bytes in a specific queue, useful for congestion control and bandwidth
+// management.
 uint32_t
 RdmaEgressQueue::GetNBytes(uint32_t qIndex)
 {
@@ -233,6 +241,7 @@ RdmaEgressQueue::GetNBytes(uint32_t qIndex)
     return m_qpGrp->Get(qIndex)->GetBytesLeft();
 }
 
+// Returns the number of active flows or queue pairs managed by the RdmaEgressQueue.
 uint32_t
 RdmaEgressQueue::GetFlowCount(void)
 {
@@ -245,6 +254,7 @@ RdmaEgressQueue::GetQp(uint32_t i)
     return m_qpGrp->Get(i);
 }
 
+// Allows recovery of a queue in case of errors or after congestion has been resolved.
 void
 RdmaEgressQueue::RecoverQueue(uint32_t i)
 {
@@ -252,6 +262,7 @@ RdmaEgressQueue::RecoverQueue(uint32_t i)
     m_qpGrp->Get(i)->snd_nxt = m_qpGrp->Get(i)->snd_una;
 }
 
+// Enqueues a packet into a high-priority queue, typically used for control packets or urgent data.
 void
 RdmaEgressQueue::EnqueueHighPrioQ(Ptr<Packet> p)
 {
@@ -365,6 +376,8 @@ QbbNetDevice::GetDataRate()
     return m_bps;
 }
 
+// Starts the transmission of a packet, managing the physical layer aspects and scheduling
+// completion events.
 bool
 QbbNetDevice::TransmitStart(Ptr<Packet> p)
 {
@@ -562,6 +575,8 @@ QbbNetDevice::Resume(unsigned qIndex)
     DequeueAndTransmit();
 }
 
+// Sets the callback function to be called upon receiving a packet, ensuring proper handling of
+// incoming data.
 void
 QbbNetDevice::SetReceiveCallback(NetDevice::ReceiveCallback cb)
 {
@@ -612,6 +627,8 @@ QbbNetDevice::EtherToPpp(uint16_t proto)
     return 0;
 }
 
+// Overrides the PointToPointNetDevice::Receive function to handle incoming packets, specifically
+// managing QBB functionalities like congestion notification and priority flow control.
 void
 QbbNetDevice::Receive(Ptr<Packet> packet)
 {
@@ -729,6 +746,8 @@ QbbNetDevice::GetRemote(void) const
     return Address();
 }
 
+// Manages the sending of packets over the network device, interfacing with the QBB functionalities
+// to apply priority and congestion controls.
 bool
 QbbNetDevice::Send(Ptr<Packet> packet, const Address& dest, uint16_t protocolNumber)
 {
@@ -748,6 +767,8 @@ QbbNetDevice::Send(Ptr<Packet> packet, const Address& dest, uint16_t protocolNum
     return true;
 }
 
+// An extension or variant of the Send function, possibly used for managing packet transmission
+// based on QBB-specific logic or switching contexts.
 bool
 QbbNetDevice::SwitchSend(uint32_t qIndex, Ptr<Packet> packet, CustomHeader& ch)
 {
@@ -758,6 +779,8 @@ QbbNetDevice::SwitchSend(uint32_t qIndex, Ptr<Packet> packet, CustomHeader& ch)
     return true;
 }
 
+//  Sends a Priority Flow Control frame, pausing or resuming traffic on a specific priority queue
+//  based on congestion signals.
 void
 QbbNetDevice::SendPfc(uint32_t qIndex, uint32_t type)
 {
@@ -779,6 +802,8 @@ QbbNetDevice::SendPfc(uint32_t qIndex, uint32_t type)
     SwitchSend(0, p, ch);
 }
 
+// Attaches the QBB device to a network channel, setting up the necessary connections for data
+// transmission.
 bool
 QbbNetDevice::Attach(Ptr<QbbChannel> ch)
 {
@@ -820,6 +845,8 @@ QbbNetDevice::TriggerTransmit(void)
     DequeueAndTransmit();
 }
 
+// Sets the queue (or possibly a set of queues) used for managing outgoing packets, configuring the
+// device for traffic management.
 void
 QbbNetDevice::SetQueue(Ptr<BEgressQueue> q)
 {
