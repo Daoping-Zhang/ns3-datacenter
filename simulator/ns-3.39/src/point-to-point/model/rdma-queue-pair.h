@@ -156,19 +156,49 @@ class RdmaQueuePair : public Object
                   Ipv4Address _dip,
                   uint16_t _sport,
                   uint16_t _dport);
+    // Sets the size of the data to be transferred over this queue pair, which is crucial for
+    // knowing when the data transfer is complete.
     void SetSize(uint64_t size);
+    // Sets the size of the congestion window (cwnd), affecting how many packets can be on-the-fly
+    // before waiting for acknowledgments.
     void SetWin(uint32_t win);
+    // Sets the base Round-Trip Time (RTT), which can be used for calculating the optimal sending
+    // rate
+    // or adjusting the congestion window.
     void SetBaseRtt(uint64_t baseRtt);
+    // Enables or disables the variable window size feature, potentially for experimental congestion
+    // control algorithms.
     void SetVarWin(bool v);
+    // Sets a callback function that will be called when the application-level transfer is finished,
+    // allowing for cleanup or further actions.
     void SetAppNotifyCallback(Callback<void> notifyAppFinish);
 
+    // Returns the amount of data left to send, which can be used to determine if the transfer is
+    // complete.
     uint64_t GetBytesLeft() const;
+    // Generates a hash value based on the queue pair's source and destination IP addresses and
+    // ports,
+    // likely used for efficiently looking up queue pairs.
     uint32_t GetHash(void) const;
+    // Updates the highest sequence number acknowledged by the receiver, which is crucial for
+    // tracking which packets have been successfully received and adjusting the congestion window
+    // accordingly.
     void Acknowledge(uint64_t ack);
+    // Calculates the number of packets (or bytes) that have been sent but not yet acknowledged,
+    // useful for congestion control and flow control decisions.
     uint64_t GetOnTheFly() const;
+    // Determines if the number of packets on-the-fly has reached the congestion window limit,
+    // indicating whether it's necessary to pause sending further packets.
     bool IsWinBound() const;
+    // Calculates the current effective window size, potentially adjusting for variable window
+    // algorithms or rate-based congestion control.
     uint64_t GetWin() const; // window size calculated from m_rate
+    // Checks if the data transfer for this queue pair is complete, which could be based on whether
+    // all data has been acknowledged or a stop time has been reached.
     bool IsFinished() const;
+    // A similar function to GetWin but specifically for HPCC (High Precision Congestion Control) or
+    // another specialized congestion control algorithm, adjusting the window based on different
+    // criteria.
     uint64_t HpGetCurWin() const; // window size calculated from hp.m_curRate, used by HPCC
     uint32_t incastFlow;
 };
