@@ -160,7 +160,6 @@ bool
 RdmaQueuePair::IsWinBound() const
 {
     uint64_t w = GetWin();
-    if()
     return w != 0 && GetOnTheFly() >= w;
 }
 
