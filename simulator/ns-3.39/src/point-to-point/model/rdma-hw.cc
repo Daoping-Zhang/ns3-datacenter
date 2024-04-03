@@ -18,6 +18,7 @@
 #include <ns3/udp-header.h>
 
 #include <algorithm>
+#include <climits>
 #include <cmath>
 #include <cstdint>
 #include <iostream>
@@ -2039,19 +2040,16 @@ RdmaHw::HandleAckSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
         std::min(swift_min_cwnd, std::max(swift_max_cwnd, std::min(fab_cwnd, endpoint_cwnd)));
     if (cwnd < qp->swift.m_cwnd_prev)
     {
-        qp->swift.m_t_last_decrease = Simulator::Now().GetNanoSeconds();
+        qp->swift.m_t_last_decrease = Simulator::Now().GetTimeStep();
     }
     if (cwnd < 1)
     {
         qp->swift.m_pacing_delay = rtt * 1.0 / cwnd;
+        qp->SetWin(INT_MAX); // to make sure sending is only pacing-bound, but not window-bound
     }
     else
     {
         qp->swift.m_pacing_delay = 0;
-    }
-    // set cwnd
-    if (cwnd > 1)
-    {
         qp->SetWin((uint32_t)cwnd);
     }
 }

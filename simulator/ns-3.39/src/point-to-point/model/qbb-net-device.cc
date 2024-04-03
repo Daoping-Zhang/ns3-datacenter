@@ -135,7 +135,7 @@ SwiftCalcEndpointDelay(Ptr<Packet> p)
     { // sending an ACK
         qbbHeader qh;
         p->RemoveHeader(qh);
-        auto t4 = (uint32_t)Simulator::Now().GetNanoSeconds();
+        auto t4 = (uint32_t)Simulator::Now().GetTimeStep();
         qh.SetSwiftEndDelay(t4);
         p->AddHeader(qh);
     }
