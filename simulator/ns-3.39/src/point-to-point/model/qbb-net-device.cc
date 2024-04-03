@@ -124,6 +124,9 @@ RdmaEgressQueue::DequeueQindex(int qIndex)
     return 0;
 }
 
+// Calculate endpoint delay for Swift CC; actually seems useless, endpoint delay always 0
+//
+// In theory it can also use CustomHeader, but since it works, we don't change it
 void
 SwiftCalcEndpointDelay(Ptr<Packet> p)
 {
@@ -135,12 +138,27 @@ SwiftCalcEndpointDelay(Ptr<Packet> p)
     { // sending an ACK
         qbbHeader qh;
         p->RemoveHeader(qh);
-        auto t4 = (uint32_t)Simulator::Now().GetTimeStep();
+        auto t4 = Simulator::Now().GetNanoSeconds();
         qh.SetSwiftEndDelay(t4);
         p->AddHeader(qh);
     }
     p->AddHeader(iph);
     p->AddHeader(ph);
+}
+
+// Attach t_sent (t1) to header for Swift CC
+void
+SwiftAttachTSent(Ptr<Packet> p)
+{
+    CustomHeader ch(CustomHeader::L2_Header | CustomHeader::L3_Header | CustomHeader::L4_Header);
+    ch.getInt = 1;
+    p->RemoveHeader(ch);
+    if (ch.l3Prot == 0x11)
+    { // UDP
+        auto t1 = Simulator::Now().GetNanoSeconds();
+        ch.udp.ih.swift.ts = t1;
+    }
+    p->AddHeader(ch);
 }
 
 // Determines the next queue index from which to dequeue a packet for transmission, based on
@@ -475,12 +493,12 @@ QbbNetDevice::DequeueAndTransmit(void)
                 totalBytesSent += p->GetSize();
                 return;
             }
-            // a qp dequeue a packet
+            // a qp dequeue a packet, normal priority
             Ptr<RdmaQueuePair> lastQp = m_rdmaEQ->GetQp(qIndex);
             p = m_rdmaEQ->DequeueQindex(qIndex);
             // if (p==NULL)
             // std::cout << "p is null" << std::endl;
-
+            SwiftAttachTSent(p);
             // transmit
             m_traceQpDequeue(p, lastQp);
             TransmitStart(p);

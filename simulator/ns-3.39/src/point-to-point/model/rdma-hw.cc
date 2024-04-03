@@ -2025,7 +2025,7 @@ void
 RdmaHw::HandleAckSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
 {
     auto ih = ch.ack.ih.swift;
-    std::cout << "Hops: " << ih.nhop << ", Remote Delay: " << ih.remote_delay << std::endl;
+    std::cout << "[SWIFT] Hops: " << ih.nhop << ", Remote Delay: " << ih.remote_delay << std::endl;
     uint32_t ack_seq = ch.ack.seq;
     auto rtt = Simulator::Now().GetNanoSeconds() - ih.ts;
     auto fabric_delay = rtt - ih.remote_delay;
@@ -2053,6 +2053,7 @@ RdmaHw::HandleAckSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
         qp->swift.m_pacing_delay = 0;
         qp->SetWin((uint32_t)cwnd);
     }
+    std::cout << "[SWIFT] cwnd: " << cwnd << ", rate: " << qp->m_rate << std::endl;
 }
 
 // calculate target fabric delay

@@ -88,6 +88,13 @@ qbbHeader::SetSwiftEndDelay(const uint64_t t4)
     swift->remote_delay = t4 - t2;
 }
 
+void
+qbbHeader::SetSwiftSentTime(const uint64_t t1)
+{
+    auto swift = &(this->ih.swift);
+    swift->ts = t1;
+}
+
 uint16_t
 qbbHeader::GetPG() const
 {
