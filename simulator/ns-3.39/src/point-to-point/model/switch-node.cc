@@ -454,21 +454,6 @@ SwitchNode::SwitchNotifyDequeue(uint32_t ifIndex, uint32_t qIndex, Ptr<Packet> p
                 m_u[ifIndex] = newU;
                 break;
             }
-            // case SWIFT: {
-            //     CustomHeader ch;
-            //     if (ch.l3Prot != 0xfc)
-            //     { // only modify ack
-            //         std::cout << "l3proto=" << ch.l3Prot << ", skipping" << std::endl;
-            //         break;
-            //     }
-            //     // std::cout<<"Current hop: "<<ih->swift.nhop<<", uid:"<<p->GetUid()<<std::endl;
-            //     // hop + 1
-            //     ih->IncrementHop();
-            //     // std::cout<<"Current hop: "<<ih->swift.nhop<<", uid:"<<p->GetUid()<<std::endl;
-            //     std::cout << "Sniffed hop:" << ch.ack.ih.swift.nhop
-            //               << " Changed hop:" << ih->swift.nhop << std::endl;
-            //     break;
-            // }
             default:
                 FeedbackTag Int;
                 bool found;

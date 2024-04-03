@@ -80,9 +80,8 @@ qbbHeader::SetIntHeader(const IntHeader& _ih)
     ih = _ih;
 }
 
-// Set swift endpoint delay duration, pass sending timestamp
 void
-qbbHeader::SetSwiftEndDelay(const uint32_t t4)
+qbbHeader::SetSwiftEndDelay(const uint64_t t4)
 {
     auto swift = &(this->ih.swift);
     auto t2 = swift->remote_delay;

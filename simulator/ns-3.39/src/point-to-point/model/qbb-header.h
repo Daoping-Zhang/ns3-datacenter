@@ -7,6 +7,7 @@
 #include "ns3/header.h"
 #include "ns3/int-header.h"
 
+#include <cstdint>
 #include <stdint.h>
 
 namespace ns3
@@ -44,7 +45,10 @@ class qbbHeader : public Header
     void SetTs(uint64_t ts);
     void SetCnp();
     void SetIntHeader(const IntHeader& _ih);
-    void SetSwiftEndDelay(uint32_t t4);
+    // Set swift endpoint delay duration, pass sending timestamp
+    void SetSwiftEndDelay(uint64_t t4);
+    // Set swift sending time t_sent (t1)
+    void SetSwiftSentTime(uint64_t t1);
 
     // Getters
     /**
