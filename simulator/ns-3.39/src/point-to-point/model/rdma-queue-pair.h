@@ -140,7 +140,7 @@ class RdmaQueuePair : public Object
         // previous cwnd
         double m_cwnd_prev;
         // time (nanosecond) of last Multiple Decrease
-        uint64_t m_t_last_decrease;
+        Time m_t_last_decrease;
         // pacing delay, i.e. sending interval
         uint64_t m_pacing_delay;
         // num of acked packets
@@ -190,6 +190,8 @@ class RdmaQueuePair : public Object
     // Determines if the number of packets on-the-fly has reached the congestion window limit,
     // indicating whether it's necessary to pause sending further packets.
     bool IsWinBound() const;
+    // For Swift CC: update pacing delay (if exists)
+    void UpdatePacing();
     // Calculates the current effective window size, potentially adjusting for variable window
     // algorithms or rate-based congestion control.
     uint64_t GetWin() const; // window size calculated from m_rate

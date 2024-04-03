@@ -145,13 +145,17 @@ SwiftCalcEndpointDelay(Ptr<Packet> p)
 
 // Determines the next queue index from which to dequeue a packet for transmission, based on
 // priority and whether the queue is paused due to PFC.
+//
+// paused: whether queue i is paused by PFC and shouldn't send packet
+//
+// return: -1 for top priority (e.g. ACKs), -1024 for nothing, >0 for corresponding queue index
 int
 RdmaEgressQueue::GetNextQindex(bool paused[])
 {
     bool found = false;
     uint32_t qIndex;
     if (!paused[ack_q_idx] && m_ackQ->GetNPackets() > 0)
-    {
+    { // top priority queue, try to send first
         return -1;
     }
 
@@ -165,22 +169,23 @@ RdmaEgressQueue::GetNextQindex(bool paused[])
         {
             uint32_t fcount = m_qpGrp->GetN();
             uint32_t min_finish_id = 0xffffffff;
-            for (qIndex = 1; qIndex <= fcount; qIndex++)
+            for (qIndex = 1; qIndex <= fcount; qIndex++) // go through all queues
             {
-                uint32_t idx = (qIndex + m_rrlast) % fcount;
+                uint32_t idx = (qIndex + m_rrlast) % fcount; // start from where we left last time
                 Ptr<RdmaQueuePair> qp = m_qpGrp->Get(idx);
                 if (!paused[qp->m_pg] && qp->GetBytesLeft() > 0 && !qp->IsWinBound())
-                {
+                { // not paused, not empty, not win bound
                     if (m_qpGrp->Get(idx)->m_nextAvail.GetTimeStep() >
                         Simulator::Now().GetTimeStep())
-                    { // not available now
+                    { // still sending or pacing, not available
                         continue;
                     }
-                    res = idx;
+                    res = idx;          // send from this queue
+                    qp->UpdatePacing(); // add another pacing delay to nextAvail
                     break;
                 }
                 else if (qp->IsFinished())
-                {
+                { // finished
                     min_finish_id = idx < min_finish_id ? idx : min_finish_id;
                 }
             }
@@ -437,10 +442,10 @@ QbbNetDevice::DequeueAndTransmit(void)
     {
         int qIndex = m_rdmaEQ->GetNextQindex(m_paused);
         // std::cout << "qIndex " << qIndex << std::endl;
-        if (qIndex != -1024)
+        if (qIndex != -1024) // there's something to transmit
         {
             if (qIndex == -1)
-            { // high prio
+            { // high prio, e.g. ACK
                 p = m_rdmaEQ->DequeueQindex(qIndex);
                 if (IntHeader::mode == IntHeader::SWIFT)
                 { // those ACKs will be put in high priority queue

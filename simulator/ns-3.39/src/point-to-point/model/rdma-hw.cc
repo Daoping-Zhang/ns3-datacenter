@@ -2027,7 +2027,7 @@ RdmaHw::HandleAckSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
     auto ih = ch.ack.ih.swift;
     std::cout << "Hops: " << ih.nhop << ", Remote Delay: " << ih.remote_delay << std::endl;
     uint32_t ack_seq = ch.ack.seq;
-    auto rtt = (uint32_t)Simulator::Now().GetNanoSeconds() - ih.ts;
+    auto rtt = Simulator::Now().GetNanoSeconds() - ih.ts;
     auto fabric_delay = rtt - ih.remote_delay;
 
     // on receiving ack
@@ -2040,12 +2040,13 @@ RdmaHw::HandleAckSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
         std::min(swift_min_cwnd, std::max(swift_max_cwnd, std::min(fab_cwnd, endpoint_cwnd)));
     if (cwnd < qp->swift.m_cwnd_prev)
     {
-        qp->swift.m_t_last_decrease = Simulator::Now().GetTimeStep();
+        qp->swift.m_t_last_decrease = Simulator::Now();
     }
     if (cwnd < 1)
     {
         qp->swift.m_pacing_delay = rtt * 1.0 / cwnd;
         qp->SetWin(INT_MAX); // to make sure sending is only pacing-bound, but not window-bound
+        qp->UpdatePacing();
     }
     else
     {
@@ -2076,7 +2077,7 @@ RdmaHw::GetCwndSwift(Ptr<RdmaQueuePair> qp,
                      uint64_t target_delay,
                      uint64_t curr_delay) const
 {
-    bool canDecrease = ch.ack.ih.swift.remote_delay > qp->swift.m_t_last_decrease;
+    bool canDecrease = ch.ack.ih.swift.remote_delay > qp->swift.m_t_last_decrease.GetNanoSeconds();
     double cwnd = qp->swift.m_cwnd_prev;
     if (curr_delay < target_delay)
     {

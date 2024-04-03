@@ -8,6 +8,8 @@
 #include <ns3/udp-header.h>
 #include <ns3/uinteger.h>
 
+#include <string>
+
 namespace ns3
 {
 
@@ -79,10 +81,12 @@ RdmaQueuePair::RdmaQueuePair(uint16_t pg,
 
     swift.m_lastUpdateSeq = 0;
     swift.m_lastEndpointDelay = 0;
-    swift.m_t_last_decrease = 0;
+    swift.m_t_last_decrease = Time(0);
     swift.m_curRate = 0;
     swift.m_retransmit_cnt = 0;
-    swift.m_cwnd_prev = 0;
+    swift.m_cwnd_prev = 0.0;
+    swift.m_pacing_delay = 0;
+    swift.num_acked = 0;
 }
 
 void
@@ -161,6 +165,17 @@ RdmaQueuePair::IsWinBound() const
 {
     uint64_t w = GetWin();
     return w != 0 && GetOnTheFly() >= w;
+}
+
+void
+RdmaQueuePair::UpdatePacing()
+{
+    // Update next avail time, just add a pacing delay
+    // Minimum pacing delay is 1 RTT, and the sending process should be shorter?
+    // For other CCs, pacing delay is always 0
+    Time now = Simulator::Now();
+    auto pacing = Time(swift.m_pacing_delay);
+    this->m_nextAvail = std::max(this->m_nextAvail, now + pacing);
 }
 
 uint64_t
