@@ -2025,10 +2025,14 @@ void
 RdmaHw::HandleAckSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
 {
     auto ih = ch.ack.ih.swift;
-    std::cout << "[SWIFT] Hops: " << ih.nhop << ", Remote Delay: " << ih.remote_delay << std::endl;
+    // std::cout << "[SWIFT] Hops: " << ih.nhop << ", Remote Delay: " << ih.remote_delay <<
+    // std::endl;
     uint32_t ack_seq = ch.ack.seq;
     auto rtt = Simulator::Now().GetNanoSeconds() - ih.ts;
     auto fabric_delay = rtt - ih.remote_delay;
+
+    // update ack num
+    qp->swift.num_acked += ack_seq / 1000;
 
     // on receiving ack
     qp->swift.m_retransmit_cnt = 0;
@@ -2038,7 +2042,7 @@ RdmaHw::HandleAckSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
     // cap max and min cwnd, and get the lower one in fab and endpoint
     auto cwnd =
         std::max(swift_min_cwnd, std::min(swift_max_cwnd, std::min(fab_cwnd, endpoint_cwnd)));
-    if (cwnd < qp->swift.m_cwnd_prev)
+    if (cwnd < qp->m_win)
     {
         qp->swift.m_t_last_decrease = Simulator::Now();
     }
@@ -2053,7 +2057,7 @@ RdmaHw::HandleAckSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
         qp->swift.m_pacing_delay = 0;
         qp->SetWin((uint32_t)cwnd);
     }
-    std::cout << "[SWIFT] cwnd: " << cwnd << ", rate: " << qp->m_rate << std::endl;
+    // std::cout << "[SWIFT] cwnd: " << cwnd << ", rate: " << qp->m_rate << std::endl;
 }
 
 // calculate target fabric delay
@@ -2084,11 +2088,11 @@ RdmaHw::GetCwndSwift(Ptr<RdmaQueuePair> qp,
     {
         if (cwnd >= 1)
         {
-            cwnd = cwnd + (double)swift_ai / cwnd * 1; // TODO: num_acked
+            cwnd = cwnd + (double)swift_ai / cwnd * qp->swift.num_acked;
         }
         else
         {
-            cwnd = cwnd + swift_ai * 1;
+            cwnd = cwnd + swift_ai * qp->swift.num_acked;
         }
     }
     else if (canDecrease)

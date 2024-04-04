@@ -137,8 +137,6 @@ class RdmaQueuePair : public Object
         DataRate m_curRate;
         // retransmit time count
         uint16_t m_retransmit_cnt;
-        // previous cwnd
-        double m_cwnd_prev;
         // time (nanosecond) of last Multiple Decrease
         Time m_t_last_decrease;
         // pacing delay, i.e. sending interval
