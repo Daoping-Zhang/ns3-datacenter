@@ -2037,7 +2037,7 @@ RdmaHw::HandleAckSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
     auto endpoint_cwnd = GetCwndSwift(qp, p, ch, swift_target_endpoint_delay, ih.remote_delay);
     // cap max and min cwnd, and get the lower one in fab and endpoint
     auto cwnd =
-        std::min(swift_min_cwnd, std::max(swift_max_cwnd, std::min(fab_cwnd, endpoint_cwnd)));
+        std::max(swift_min_cwnd, std::min(swift_max_cwnd, std::min(fab_cwnd, endpoint_cwnd)));
     if (cwnd < qp->swift.m_cwnd_prev)
     {
         qp->swift.m_t_last_decrease = Simulator::Now();
@@ -2078,13 +2078,13 @@ RdmaHw::GetCwndSwift(Ptr<RdmaQueuePair> qp,
                      uint64_t target_delay,
                      uint64_t curr_delay) const
 {
-    bool canDecrease = ch.ack.ih.swift.remote_delay > qp->swift.m_t_last_decrease.GetNanoSeconds();
-    double cwnd = qp->swift.m_cwnd_prev;
+    bool canDecrease = ch.ack.ih.swift.ts > qp->swift.m_t_last_decrease.GetNanoSeconds();
+    double cwnd = qp->m_win;
     if (curr_delay < target_delay)
     {
         if (cwnd >= 1)
         {
-            cwnd = cwnd + swift_ai / cwnd * 1; // TODO: num_acked
+            cwnd = cwnd + (double)swift_ai / cwnd * 1; // TODO: num_acked
         }
         else
         {
