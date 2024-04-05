@@ -1354,11 +1354,11 @@ main(int argc, char* argv[])
             rdmaHw->SetAttribute("PowerTCPdelay", BooleanValue(delayWien));
             rdmaHw->SetAttribute("SwiftAi", UintegerValue(SwiftAi));
             rdmaHw->SetAttribute("SwiftBeta", DoubleValue(SwiftBeta));
-            rdmaHw->SetAttribute("SwiftMaxMdf", UintegerValue(SwiftMaxMdf));
+            rdmaHw->SetAttribute("SwiftMaxMdf", DoubleValue(SwiftMaxMdf));
             rdmaHw->SetAttribute("SwiftBaseTarget", UintegerValue(SwiftBaseTarget));
             rdmaHw->SetAttribute("SwiftHopScale", DoubleValue(SwiftHopScale));
-            rdmaHw->SetAttribute("SwiftFsMaxCwnd", UintegerValue(SwiftFsMaxCwnd));
-            rdmaHw->SetAttribute("SwiftFsMinCwnd", UintegerValue(SwiftFsMinCwnd));
+            rdmaHw->SetAttribute("SwiftFsMaxCwnd", DoubleValue(SwiftFsMaxCwnd));
+            rdmaHw->SetAttribute("SwiftFsMinCwnd", DoubleValue(SwiftFsMinCwnd));
             rdmaHw->SetAttribute("SwiftFsRange", DoubleValue(SwiftFsRange));
             rdmaHw->SetAttribute("SwiftMinCwnd", DoubleValue(SwiftMinCwnd));
             rdmaHw->SetAttribute("SwiftMaxCwnd", DoubleValue(SwiftMaxCwnd));
