@@ -213,7 +213,7 @@ RdmaHw::GetTypeId(void)
             // Swift parameters from code of paper Burst-tolerant datacenter networks with Vertigo
             .AddAttribute("SwiftAi",
                           "Swift's additive increment",
-                          UintegerValue(1),
+                          UintegerValue(1000),
                           MakeUintegerAccessor(&RdmaHw::swift_ai),
                           MakeUintegerChecker<uint32_t>())
             .AddAttribute("SwiftBeta",
@@ -258,7 +258,7 @@ RdmaHw::GetTypeId(void)
                           MakeDoubleChecker<double>())
             .AddAttribute("SwiftMaxCwnd",
                           "Swift's max cwnd it can exceed (not fs)",
-                          DoubleValue(43),
+                          DoubleValue(800000),
                           MakeDoubleAccessor(&RdmaHw::swift_max_cwnd),
                           MakeDoubleChecker<double>())
             // seems that in emulator there is no endpoint delay
@@ -2027,12 +2027,12 @@ RdmaHw::HandleAckSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
     auto ih = ch.ack.ih.swift;
     // std::cout << "[SWIFT] Hops: " << ih.nhop << ", Remote Delay: " << ih.remote_delay <<
     // std::endl;
-    uint32_t ack_seq = ch.ack.seq;
+    // uint32_t ack_seq = ch.ack.seq;
     auto rtt = Simulator::Now().GetNanoSeconds() - ih.ts;
     auto fabric_delay = rtt - ih.remote_delay;
 
     // update ack num
-    qp->swift.num_acked += ack_seq / 1000;
+    // qp->swift.num_acked += ack_seq / 1000;
 
     // on receiving ack
     qp->swift.m_retransmit_cnt = 0;
@@ -2057,7 +2057,7 @@ RdmaHw::HandleAckSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
         qp->swift.m_pacing_delay = 0;
         qp->SetWin((uint32_t)cwnd);
     }
-    // std::cout << "[SWIFT] cwnd: " << cwnd << ", rate: " << qp->m_rate << std::endl;
+    std::cout << "[SWIFT] cwnd: " << cwnd << std::endl;
 }
 
 // calculate target fabric delay
@@ -2088,11 +2088,12 @@ RdmaHw::GetCwndSwift(Ptr<RdmaQueuePair> qp,
     {
         if (cwnd >= 1)
         {
-            cwnd = cwnd + (double)swift_ai / cwnd * qp->swift.num_acked;
+            // ch.ack.seq is also num_acked (in seq number)
+            cwnd = cwnd + (double)swift_ai / cwnd * ch.ack.seq;
         }
         else
         {
-            cwnd = cwnd + swift_ai * qp->swift.num_acked;
+            cwnd = cwnd + swift_ai * ch.ack.seq;
         }
     }
     else if (canDecrease)
