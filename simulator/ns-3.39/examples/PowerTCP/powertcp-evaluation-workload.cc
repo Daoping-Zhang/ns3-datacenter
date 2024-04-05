@@ -1073,13 +1073,6 @@ main(int argc, char* argv[])
             conf >> int_multi;
             std::cout << "INT_MULTI\t\t\t\t" << int_multi << '\n';
         }
-        else if (key == "RATE_BOUND")
-        {
-            uint32_t v;
-            conf >> v;
-            rate_bound = v;
-            std::cout << "RATE_BOUND\t\t" << rate_bound << '\n';
-        }
         else if (key == "ACK_HIGH_PRIO")
         {
             conf >> ack_high_prio;
@@ -1212,26 +1205,37 @@ main(int argc, char* argv[])
     // IntHeader::mode
     switch (cc_mode)
     {
-        case CC_MODE::TIMELY:
-        case CC_MODE::PATCHED_TIMELY:
-            // timely or patched timely, use ts
-            IntHeader::mode = IntHeader::TS;
-            break;
-        case CC_MODE::POWERTCP:
-            // hpcc, powertcp, use int
-            IntHeader::mode = IntHeader::NORMAL;
-            break;
-        case CC_MODE::HPCC_PINT:
-            // hpcc-pint
-            IntHeader::mode = IntHeader::PINT;
-            break;
-        case CC_MODE::SWIFT:
-            IntHeader::mode = IntHeader::SWIFT;
-            break;
-        default:
-            // others, no extra header
-            IntHeader::mode = IntHeader::NONE;
-            break;
+    case CC_MODE::TIMELY:
+    case CC_MODE::PATCHED_TIMELY:
+        // timely or patched timely, use ts
+        IntHeader::mode = IntHeader::TS;
+        break;
+    case CC_MODE::POWERTCP:
+        // hpcc, powertcp, use int
+        IntHeader::mode = IntHeader::NORMAL;
+        break;
+    case CC_MODE::HPCC_PINT:
+        // hpcc-pint
+        IntHeader::mode = IntHeader::PINT;
+        break;
+    case CC_MODE::SWIFT:
+        IntHeader::mode = IntHeader::SWIFT;
+        break;
+    default:
+        // others, no extra header
+        IntHeader::mode = IntHeader::NONE;
+        break;
+    }
+
+    // set rate bound
+    switch (cc_mode)
+    {
+    case CC_MODE::SWIFT:
+        rate_bound = 0;
+        break;
+    default:
+        // it's always 1 in the config, so assuming it's ok
+        rate_bound = 1;
     }
 
     // Set Pint
