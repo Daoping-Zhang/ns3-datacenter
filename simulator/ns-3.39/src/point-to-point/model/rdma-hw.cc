@@ -916,7 +916,7 @@ RdmaHw::UpdateNextAvail(Ptr<RdmaQueuePair> qp, Time interframeGap, uint32_t pkt_
     {
         sendingTime = interframeGap + qp->m_max_rate.CalculateBytesTxTime(pkt_size);
     }
-    qp->m_nextAvail = Simulator::Now() + sendingTime;
+    qp->m_nextAvail = std::max(Simulator::Now() + sendingTime, qp->m_nextAvail);
 }
 
 void
