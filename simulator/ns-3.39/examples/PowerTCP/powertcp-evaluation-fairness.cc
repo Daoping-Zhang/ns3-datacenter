@@ -70,6 +70,19 @@ double u_target = 0.95;
 uint32_t int_multi = 1;
 bool rate_bound = true;
 
+// Swift parameters
+uint32_t SwiftAi = 1000;
+double SwiftBeta = 0.8;
+double SwiftMaxMdf = 0.5;
+double SwiftBaseTarget = 60000;
+double SwiftHopScale = 30000;
+double SwiftFsMaxCwnd = 0.1;
+double SwiftFsMinCwnd = 0.000300;
+double SwiftFsRange = 0.000300;
+double SwiftMinCwnd = 0.001;
+double SwiftMaxCwnd = 800000;
+double SwiftTargetEndpointDelay = 1000000;
+
 uint32_t ack_high_prio = 0;
 uint64_t link_down_time = 0;
 uint32_t link_down_A = 0, link_down_B = 0;
@@ -929,6 +942,61 @@ main(int argc, char* argv[])
             conf >> pint_prob;
             std::cout << "PINT_PROB\t\t\t\t" << pint_prob << '\n';
         }
+        else if (key == "SWIFT_AI")
+        {
+            conf >> SwiftAi;
+            std::cout << "SWIFT_AI\t\t\t\t" << SwiftAi << '\n';
+        }
+        else if (key == "SWIFT_BETA")
+        {
+            conf >> SwiftBeta;
+            std::cout << "SWIFT_BETA\t\t\t\t" << SwiftBeta << '\n';
+        }
+        else if (key == "SWIFT_MAX_MDF")
+        {
+            conf >> SwiftMaxMdf;
+            std::cout << "SWIFT_MAX_MDF\t\t\t\t" << SwiftMaxMdf << '\n';
+        }
+        else if (key == "SWIFT_BASE_TARGET")
+        {
+            conf >> SwiftBaseTarget;
+            std::cout << "SWIFT_BASE_TARGET\t\t\t\t" << SwiftBaseTarget << '\n';
+        }
+        else if (key == "SWIFT_HOP_SCALE")
+        {
+            conf >> SwiftHopScale;
+            std::cout << "SWIFT_HOP_SCALE\t\t\t\t" << SwiftHopScale << '\n';
+        }
+        else if (key == "SWIFT_FS_MAX_CWND")
+        {
+            conf >> SwiftFsMaxCwnd;
+            std::cout << "SWIFT_FS_MAX_CWND\t\t\t\t" << SwiftFsMaxCwnd << '\n';
+        }
+        else if (key == "SWIFT_FS_MIN_CWND")
+        {
+            conf >> SwiftFsMinCwnd;
+            std::cout << "SWIFT_FS_MIN_CWND\t\t\t\t" << SwiftFsMinCwnd << '\n';
+        }
+        else if (key == "SWIFT_FS_RANGE")
+        {
+            conf >> SwiftFsRange;
+            std::cout << "SWIFT_FS_RANGE\t\t\t\t" << SwiftFsRange << '\n';
+        }
+        else if (key == "SWIFT_MIN_CWND")
+        {
+            conf >> SwiftMinCwnd;
+            std::cout << "SWIFT_MIN_CWND\t\t\t\t" << SwiftMinCwnd << '\n';
+        }
+        else if (key == "SWIFT_MAX_CWND")
+        {
+            conf >> SwiftMaxCwnd;
+            std::cout << "SWIFT_MAX_CWND\t\t\t\t" << SwiftMaxCwnd << '\n';
+        }
+        else if (key == "SWIFT_TARGET_ENDPOINT_DELAY")
+        {
+            conf >> SwiftTargetEndpointDelay;
+            std::cout << "SWIFT_TARGET_ENDPOINT_DELAY\t\t\t\t" << SwiftTargetEndpointDelay << '\n';
+        }
         fflush(stdout);
     }
     conf.close();
@@ -1264,6 +1332,19 @@ main(int argc, char* argv[])
             rdmaHw->SetAttribute("DctcpRateAI", DataRateValue(DataRate(dctcp_rate_ai)));
             rdmaHw->SetAttribute("PowerTCPEnabled", BooleanValue(wien));
             rdmaHw->SetAttribute("PowerTCPdelay", BooleanValue(delayWien));
+            rdmaHw->SetAttribute("SwiftAi", UintegerValue(SwiftAi));
+            rdmaHw->SetAttribute("SwiftBeta", DoubleValue(SwiftBeta));
+            rdmaHw->SetAttribute("SwiftMaxMdf", UintegerValue(SwiftMaxMdf));
+            rdmaHw->SetAttribute("SwiftBaseTarget", UintegerValue(SwiftBaseTarget));
+            rdmaHw->SetAttribute("SwiftHopScale", DoubleValue(SwiftHopScale));
+            rdmaHw->SetAttribute("SwiftFsMaxCwnd", UintegerValue(SwiftFsMaxCwnd));
+            rdmaHw->SetAttribute("SwiftFsMinCwnd", UintegerValue(SwiftFsMinCwnd));
+            rdmaHw->SetAttribute("SwiftFsRange", DoubleValue(SwiftFsRange));
+            rdmaHw->SetAttribute("SwiftMinCwnd", DoubleValue(SwiftMinCwnd));
+            rdmaHw->SetAttribute("SwiftMaxCwnd", DoubleValue(SwiftMaxCwnd));
+            rdmaHw->SetAttribute("SwiftTargetEndpointDelay",
+                                 UintegerValue(SwiftTargetEndpointDelay));
+
             rdmaHw->SetPintSmplThresh(pint_prob);
             // create and install RdmaDriver
             Ptr<RdmaDriver> rdma = CreateObject<RdmaDriver>();

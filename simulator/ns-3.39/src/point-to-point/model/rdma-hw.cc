@@ -233,7 +233,7 @@ RdmaHw::GetTypeId(void)
                           MakeUintegerChecker<uint32_t>())
             .AddAttribute("SwiftHopScale",
                           "Swift's per hop RTT scaling factor",
-                          DoubleValue(0.000030),
+                          DoubleValue(30000),
                           MakeDoubleAccessor(&RdmaHw::swift_hop_scale),
                           MakeDoubleChecker<double>())
             .AddAttribute("SwiftFsMaxCwnd",
