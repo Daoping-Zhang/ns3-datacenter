@@ -85,7 +85,6 @@ RdmaQueuePair::RdmaQueuePair(uint16_t pg,
     swift.m_curRate = 0;
     swift.m_retransmit_cnt = 0;
     swift.m_pacing_delay = 0;
-    // swift.num_acked = 0;
 }
 
 void

@@ -2031,9 +2031,6 @@ RdmaHw::HandleAckSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
     auto rtt = Simulator::Now().GetNanoSeconds() - ih.ts;
     auto fabric_delay = rtt - ih.remote_delay;
 
-    // update ack num
-    // qp->swift.num_acked += ack_seq / 1000;
-
     // on receiving ack
     qp->swift.m_retransmit_cnt = 0;
     auto target_fab_delay = TargetFabDelaySwift(qp, p, ch);
@@ -2088,12 +2085,13 @@ RdmaHw::GetCwndSwift(Ptr<RdmaQueuePair> qp,
     {
         if (cwnd >= 1)
         {
-            // ch.ack.seq is also num_acked (in seq number)
-            cwnd = cwnd + (double)swift_ai / cwnd * ch.ack.seq;
+            // num_acked is actually the number of packets IN EVERY ACK
+            // so that we can assure incrementing approx. swift_ai per RTT
+            cwnd = cwnd + (double)swift_ai * (1000.0 / cwnd);
         }
         else
         {
-            cwnd = cwnd + swift_ai * ch.ack.seq;
+            cwnd = cwnd + swift_ai * 1000;
         }
     }
     else if (canDecrease)
