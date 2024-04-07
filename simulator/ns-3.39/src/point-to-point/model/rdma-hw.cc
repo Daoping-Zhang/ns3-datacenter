@@ -2061,7 +2061,7 @@ RdmaHw::HandleAckSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
 uint64_t
 RdmaHw::TargetFabDelaySwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch) const
 {
-    double fcwnd = 0.0;
+    double fcwnd = qp->m_win;
     auto num_hops = ch.ack.ih.swift.nhop;
     auto alpha =
         swift_fs_range / (std::pow(swift_fs_min_cwnd, -0.5) - std::pow(swift_fs_max_cwnd, -0.5));
