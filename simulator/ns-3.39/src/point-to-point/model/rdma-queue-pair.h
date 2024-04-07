@@ -141,7 +141,10 @@ class RdmaQueuePair : public Object
         Time m_t_last_decrease;
         // pacing delay, i.e. sending interval
         uint64_t m_pacing_delay;
-        // num of acked packets
+        // real window size
+        //
+        // swift sets window size to INT_MAX to avoid packet capping during pacing (win<1)
+        double m_real_win;
     } swift;
 
     /***********

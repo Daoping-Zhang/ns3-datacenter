@@ -2047,21 +2047,23 @@ RdmaHw::HandleAckSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
     {
         qp->swift.m_pacing_delay = rtt * 1.0 / cwnd;
         qp->SetWin(INT_MAX); // to make sure sending is only pacing-bound, but not window-bound
+        qp->swift.m_real_win = cwnd;
         qp->UpdatePacing();
     }
     else
     {
         qp->swift.m_pacing_delay = 0;
         qp->SetWin((uint32_t)cwnd);
+        qp->swift.m_real_win = cwnd;
     }
-    std::cout << "[SWIFT] cwnd: " << cwnd << std::endl;
+    std::cout << "[SWIFT] cwnd: " << cwnd << ", delay: " << fabric_delay << std::endl;
 }
 
 // calculate target fabric delay
 uint64_t
 RdmaHw::TargetFabDelaySwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch) const
 {
-    double fcwnd = qp->m_win;
+    double fcwnd = qp->swift.m_real_win;
     auto num_hops = ch.ack.ih.swift.nhop;
     auto alpha =
         swift_fs_range / (std::pow(swift_fs_min_cwnd, -0.5) - std::pow(swift_fs_max_cwnd, -0.5));
@@ -2080,7 +2082,7 @@ RdmaHw::GetCwndSwift(Ptr<RdmaQueuePair> qp,
                      uint64_t curr_delay) const
 {
     bool canDecrease = ch.ack.ih.swift.ts > qp->swift.m_t_last_decrease.GetNanoSeconds();
-    double cwnd = qp->m_win;
+    double cwnd = qp->swift.m_real_win;
     if (curr_delay < target_delay)
     {
         if (cwnd >= 1)
