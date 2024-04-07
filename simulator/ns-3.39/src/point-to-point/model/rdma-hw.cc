@@ -2056,7 +2056,8 @@ RdmaHw::HandleAckSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
         qp->SetWin((uint32_t)cwnd);
         qp->swift.m_real_win = cwnd;
     }
-    std::cout << "[SWIFT] cwnd: " << cwnd << ", delay: " << fabric_delay << std::endl;
+    std::cout << "[SWIFT] node: " << m_node->GetId() << ", cwnd: " << cwnd
+              << ", delay: " << fabric_delay << std::endl;
 }
 
 // calculate target fabric delay
