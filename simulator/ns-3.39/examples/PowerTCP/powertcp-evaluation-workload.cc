@@ -85,6 +85,12 @@ double u_target = 0.95;
 uint32_t int_multi = 1;
 bool rate_bound = true;
 
+// RTT-QCN variables
+uint32_t RttQcnTmin = 3000;
+uint32_t RttQcnTmax = 5000;
+double RttQcnAlpha = 0.5;
+double RttQcnBeta = 0.25;
+
 uint32_t ack_high_prio = 0;
 uint64_t link_down_time = 0;
 uint32_t link_down_A = 0, link_down_B = 0;
@@ -1257,6 +1263,26 @@ main(int argc, char* argv[])
             conf >> SwiftTargetEndpointDelay;
             std::cout << "SWIFT_TARGET_ENDPOINT_DELAY\t\t\t\t" << SwiftTargetEndpointDelay << '\n';
         }
+        else if (key == "RTT_QCN_T_MIN")
+        {
+            conf >> RttQcnTmin;
+            std::cout << "RTT_QCN_T_MIN\t\t\t\t" << RttQcnTmin << '\n';
+        }
+        else if (key == "RTT_QCN_T_MAX")
+        {
+            conf >> RttQcnTmax;
+            std::cout << "RTT_QCN_T_MAX\t\t\t\t" << RttQcnTmax << '\n';
+        }
+        else if (key == "RTT_QCN_ALPHA")
+        {
+            conf >> RttQcnAlpha;
+            std::cout << "RTT_QCN_ALPHA\t\t\t\t" << RttQcnAlpha << '\n';
+        }
+        else if (key == "RTT_QCN_BETA")
+        {
+            conf >> RttQcnBeta;
+            std::cout << "RTT_QCN_BETA\t\t\t\t" << RttQcnBeta << '\n';
+        }
         fflush(stdout);
     }
     conf.close();
@@ -1276,6 +1302,7 @@ main(int argc, char* argv[])
     {
     case CC_MODE::TIMELY:
     case CC_MODE::PATCHED_TIMELY:
+    case CC_MODE::RTT_QCN:
         // timely or patched timely, use ts
         IntHeader::mode = IntHeader::TS;
         break;
@@ -1606,6 +1633,10 @@ main(int argc, char* argv[])
             rdmaHw->SetAttribute("SwiftMaxCwnd", DoubleValue(SwiftMaxCwnd));
             rdmaHw->SetAttribute("SwiftTargetEndpointDelay",
                                  UintegerValue(SwiftTargetEndpointDelay));
+            rdmaHw->SetAttribute("RttQcnTmin", UintegerValue(RttQcnTmin));
+            rdmaHw->SetAttribute("RttQcnTmax", UintegerValue(RttQcnTmax));
+            rdmaHw->SetAttribute("RttQcnAlpha", DoubleValue(RttQcnAlpha));
+            rdmaHw->SetAttribute("RttQcnBeta", DoubleValue(RttQcnBeta));
             rdmaHw->SetPintSmplThresh(pint_prob);
             // create and install RdmaDriver
             Ptr<RdmaDriver> rdma = CreateObject<RdmaDriver>();
