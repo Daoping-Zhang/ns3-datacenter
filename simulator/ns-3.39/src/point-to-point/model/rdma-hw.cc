@@ -2131,8 +2131,8 @@ RdmaHw::GetCwndSwift(Ptr<RdmaQueuePair> qp,
 void
 RdmaHw::HandleAckRttQcn(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch) const
 {
-    auto rtt = Simulator::Now().GetTimeStep() - ch.ack.ih.GetTs();
-    auto ecn = false;
+    uint64_t rtt = Simulator::Now().GetTimeStep() - ch.ack.ih.GetTs();
+    bool ecn = false;
     if (rtt <= rtt_qcn_tmin)
     {
         ecn = false;
@@ -2141,10 +2141,7 @@ RdmaHw::HandleAckRttQcn(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch) 
     {
         auto thresh = (rtt - rtt_qcn_tmin) * 1000.0 / (rtt_qcn_tmax - rtt_qcn_tmin);
         auto rand_num = rand() % 1000;
-        if (rand_num <= thresh)
-        {
-            ecn = true;
-        }
+        ecn = rand_num < thresh;
     }
     else
     {
@@ -2157,22 +2154,22 @@ RdmaHw::HandleAckRttQcn(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch) 
     {
         if (ecn)
         {
-            cwnd += rtt_qcn_alpha * m_mtu;
+            cwnd *= 1 - rtt_qcn_beta;
         }
         else
         {
-            cwnd *= 1 - rtt_qcn_beta;
+            cwnd += rtt_qcn_alpha * m_mtu;
         }
     }
     else
     {
         if (ecn)
         {
-            cwnd += m_mtu * 1.0 / cwnd;
+            cwnd -= 0.5 * m_mtu;
         }
         else
         {
-            cwnd -= 0.5 * m_mtu;
+            cwnd += m_mtu * 1.0 / cwnd;
         }
     }
     std::cout << "[RTT-QCN] node: " << m_node->GetId() << ", cwnd: " << qp->m_win << "->" << cwnd
