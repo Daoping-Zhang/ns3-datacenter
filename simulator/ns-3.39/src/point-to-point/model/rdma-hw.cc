@@ -266,8 +266,27 @@ RdmaHw::GetTypeId(void)
                           "Swift's target endpoint delay (ns)",
                           UintegerValue(1000000),
                           MakeUintegerAccessor(&RdmaHw::swift_target_endpoint_delay),
-                          MakeUintegerChecker<uint64_t>());
-
+                          MakeUintegerChecker<uint64_t>())
+            .AddAttribute("RttQcnTmin",
+                          "RTT-QCN's max RTT value to generate no ECN",
+                          UintegerValue(3000),
+                          MakeUintegerAccessor(&RdmaHw::rtt_qcn_tmin),
+                          MakeUintegerChecker<uint32_t>())
+            .AddAttribute("RttQcnTmax",
+                          "RTT-QCN's min RTT value to generate full ECN",
+                          UintegerValue(5000),
+                          MakeUintegerAccessor(&RdmaHw::rtt_qcn_tmax),
+                          MakeUintegerChecker<uint32_t>())
+            .AddAttribute("RttQcnAlpha",
+                          "Additive increase when cwnd < mss",
+                          DoubleValue(0.5),
+                          MakeDoubleAccessor(&RdmaHw::rtt_qcn_alpha),
+                          MakeDoubleChecker<double>())
+            .AddAttribute("RttQcnBeta",
+                          "Multiplicative decrease when cwnd < mss",
+                          DoubleValue(0.25),
+                          MakeDoubleAccessor(&RdmaHw::rtt_qcn_beta),
+                          MakeDoubleChecker<double>());
     return tid;
 }
 
@@ -667,6 +686,9 @@ RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader& ch)
         break;
     case CC_MODE::SWIFT:
         HandleAckSwift(qp, p, ch);
+        break;
+    case CC_MODE::RTT_QCN:
+        HandleAckRttQcn(qp, p, ch);
         break;
     default:
         break;
@@ -2022,7 +2044,7 @@ RdmaHw::UpdateRateHpPint(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch,
  ********************/
 
 void
-RdmaHw::HandleAckSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
+RdmaHw::HandleAckSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch) const
 {
     auto ih = ch.ack.ih.swift;
     // std::cout << "[SWIFT] Hops: " << ih.nhop << ", Remote Delay: " << ih.remote_delay <<
@@ -2090,11 +2112,11 @@ RdmaHw::GetCwndSwift(Ptr<RdmaQueuePair> qp,
         {
             // num_acked is actually the number of packets IN EVERY ACK
             // so that we can assure incrementing approx. swift_ai per RTT
-            cwnd = cwnd + (double)swift_ai * (1000.0 / cwnd);
+            cwnd = cwnd + (double)swift_ai * (m_mtu / cwnd);
         }
         else
         {
-            cwnd = cwnd + swift_ai * 1000;
+            cwnd = cwnd + swift_ai * m_mtu;
         }
     }
     else if (canDecrease)
@@ -2104,6 +2126,59 @@ RdmaHw::GetCwndSwift(Ptr<RdmaQueuePair> qp,
             cwnd;
     }
     return cwnd;
+}
+
+void
+RdmaHw::HandleAckRttQcn(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch) const
+{
+    auto rtt = Simulator::Now().GetTimeStep() - ch.ack.ih.GetTs();
+    auto ecn = false;
+    if (rtt <= rtt_qcn_tmin)
+    {
+        ecn = false;
+    }
+    else if (rtt <= rtt_qcn_tmax)
+    {
+        auto thresh = (rtt - rtt_qcn_tmin) * 1000.0 / (rtt_qcn_tmax - rtt_qcn_tmin);
+        auto rand_num = rand() % 1000;
+        if (rand_num <= thresh)
+        {
+            ecn = true;
+        }
+    }
+    else
+    {
+        ecn = true;
+    }
+
+    // window in mtu (1000), not in bytes / seq#
+    auto cwnd = qp->m_win;
+    if (cwnd < m_mtu)
+    {
+        if (ecn)
+        {
+            cwnd += rtt_qcn_alpha * m_mtu;
+        }
+        else
+        {
+            cwnd *= 1 - rtt_qcn_beta;
+        }
+    }
+    else
+    {
+        if (ecn)
+        {
+            cwnd += m_mtu * 1.0 / cwnd;
+        }
+        else
+        {
+            cwnd -= 0.5 * m_mtu;
+        }
+    }
+    std::cout << "[RTT-QCN] node: " << m_node->GetId() << ", cwnd: " << qp->m_win << "->" << cwnd
+              << ", RTT: " << rtt << ", ecn: " << ecn << std::endl;
+
+    qp->m_win = cwnd;
 }
 
 } // namespace ns3

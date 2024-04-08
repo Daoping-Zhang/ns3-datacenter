@@ -29,7 +29,7 @@ class RdmaQueuePair : public Object
     uint64_t snd_nxt, snd_una; // next seq to send, the highest unacked seq
     uint16_t m_pg;
     uint16_t m_ipid;
-    uint32_t m_win;      // bound of on-the-fly packets
+    uint32_t m_win;      // bound of on-the-fly packets (bytes?)
     uint64_t m_baseRtt;  // base RTT of this qp
     DataRate m_max_rate; // max rate
     bool m_var_win;      // variable window size

@@ -217,7 +217,7 @@ class RdmaHw : public Object
     double swift_max_cwnd; // max cwnd Swift can exceed (not fs)
     double swift_target_endpoint_delay; // target endpoint delay
 
-    void HandleAckSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch);
+    void HandleAckSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch) const;
     void UpdateRateSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, bool fast_react);
     void FastReactSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch);
     uint64_t TargetFabDelaySwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch) const;
@@ -226,6 +226,15 @@ class RdmaHw : public Object
                         CustomHeader& ch,
                         uint64_t target_delay,
                         uint64_t curr_delay) const;
+
+    /*********************
+     * RTT-QCN
+     ********************/
+    uint64_t rtt_qcn_tmin; // max rtt value to generate no ecn
+    uint64_t rtt_qcn_tmax; // min rtt value to always generate ecn
+    double rtt_qcn_alpha; // additive increase when cwnd < 1; use original value, don't multiply by mtu
+    double rtt_qcn_beta; // multiplicative decrease when cwnd > 1; use original value, don't multiply by mtu
+    void HandleAckRttQcn(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch) const;
 };
 
 enum CC_MODE
@@ -238,7 +247,8 @@ enum CC_MODE
     DCTCP = 8,
     HPCC_PINT = 10,
     PATCHED_TIMELY = 11,
-    SWIFT = 12
+    SWIFT = 12,
+    RTT_QCN = 13
 };
 
 } /* namespace ns3 */
