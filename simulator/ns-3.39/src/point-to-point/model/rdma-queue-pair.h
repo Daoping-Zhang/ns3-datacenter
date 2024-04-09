@@ -147,6 +147,13 @@ class RdmaQueuePair : public Object
         double m_real_win;
     } swift;
 
+    struct
+    {
+        // There's no packet pacing in rtt-qcn; however m_win is uint32_t, which makes additive increase really
+        // slow. Using a double to store real window helps a lot.
+        double curr_win;
+    } rttqcn;
+
     /***********
      * methods
      **********/

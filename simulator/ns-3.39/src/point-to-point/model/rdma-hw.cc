@@ -2149,7 +2149,7 @@ RdmaHw::HandleAckRttQcn(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch) 
     }
 
     // window in mtu (1000), not in bytes / seq#
-    auto cwnd = qp->m_win;
+    auto cwnd = qp->rttqcn.curr_win;
     if (cwnd < m_mtu)
     {
         if (ecn)
@@ -2169,13 +2169,14 @@ RdmaHw::HandleAckRttQcn(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch) 
         }
         else
         {
-            cwnd += m_mtu * 1.0 / cwnd;
+            // attempt to improve: multiply by 10
+            cwnd += m_mtu * 10.0 / cwnd;
         }
     }
-    std::cout << "[RTT-QCN] node: " << m_node->GetId() << ", cwnd: " << qp->m_win << "->" << cwnd
-              << ", RTT: " << rtt << ", ecn: " << ecn << std::endl;
-
-    qp->m_win = cwnd;
+    std::cout << "[RTT-QCN] node: " << m_node->GetId() << ", cwnd: " << qp->rttqcn.curr_win << "->"
+              << cwnd << ", RTT: " << rtt << ", ecn: " << ecn << std::endl;
+    qp->rttqcn.curr_win = cwnd;
+    qp->m_win = (uint32_t)cwnd;
 }
 
 } // namespace ns3
