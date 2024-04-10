@@ -182,10 +182,7 @@ class RdmaHw : public Object
     double m_ptmly_beta;
     uint64_t m_ptmly_RttRef;
     void HandleAckPatchedTimely(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch);
-    void UpdateRatePatchedTimely(Ptr<RdmaQueuePair> qp,
-                                 Ptr<Packet> p,
-                                 CustomHeader& ch,
-                                 bool us) const;
+    void UpdateRatePatchedTimely(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, bool us);
     void FastReactPatchedTimely(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch);
 
     /**********************
@@ -232,8 +229,10 @@ class RdmaHw : public Object
      ********************/
     uint64_t rtt_qcn_tmin; // max rtt value to generate no ecn
     uint64_t rtt_qcn_tmax; // min rtt value to always generate ecn
-    double rtt_qcn_alpha; // additive increase when cwnd < 1; use original value, don't multiply by mtu
-    double rtt_qcn_beta; // multiplicative decrease when cwnd > 1; use original value, don't multiply by mtu
+    double
+        rtt_qcn_alpha; // additive increase when cwnd < 1; use original value, don't multiply by mtu
+    double rtt_qcn_beta; // multiplicative decrease when cwnd > 1; use original value, don't
+                         // multiply by mtu
     void HandleAckRttQcn(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch) const;
 };
 
