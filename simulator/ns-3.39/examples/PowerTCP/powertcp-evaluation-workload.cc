@@ -91,6 +91,10 @@ uint32_t RttQcnTmax = 5000;
 double RttQcnAlpha = 0.5;
 double RttQcnBeta = 0.25;
 
+// Patched TIMELY
+uint64_t Ptmly_RttRef = 500000;
+double Ptmly_Beta = 0.008;
+
 uint32_t ack_high_prio = 0;
 uint64_t link_down_time = 0;
 uint32_t link_down_A = 0, link_down_B = 0;
@@ -1283,6 +1287,16 @@ main(int argc, char* argv[])
             conf >> RttQcnBeta;
             std::cout << "RTT_QCN_BETA\t\t\t\t" << RttQcnBeta << '\n';
         }
+        else if (key == "PATCHED_TIMELY_RTTREF")
+        {
+            conf >> Ptmly_RttRef;
+            std::cout << "PATCHED_TIMELY_RTTREF\t\t\t\t" << Ptmly_RttRef << '\n';
+        }
+        else if (key == "PATCHED_TIMELY_BETA")
+        {
+            conf >> Ptmly_Beta;
+            std::cout << "PATCHED_TIMELY_BETA\t\t\t\t" << Ptmly_Beta << '\n';
+        }
         fflush(stdout);
     }
     conf.close();
@@ -1637,6 +1651,8 @@ main(int argc, char* argv[])
             rdmaHw->SetAttribute("RttQcnTmax", UintegerValue(RttQcnTmax));
             rdmaHw->SetAttribute("RttQcnAlpha", DoubleValue(RttQcnAlpha));
             rdmaHw->SetAttribute("RttQcnBeta", DoubleValue(RttQcnBeta));
+            rdmaHw->SetAttribute("TimelyPatchedRttRef", UintegerValue(Ptmly_RttRef));
+            rdmaHw->SetAttribute("TimelyPatchedBeta", DoubleValue(Ptmly_Beta));
             rdmaHw->SetPintSmplThresh(pint_prob);
             // create and install RdmaDriver
             Ptr<RdmaDriver> rdma = CreateObject<RdmaDriver>();
