@@ -1611,13 +1611,13 @@ RdmaHw::UpdateRatePower(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, 
                 {
                     max_c = qp->hp.u / m_targetUtil;
                     new_rate = (0.9 * (qp->hp.m_curRate / max_c + DataRate("150Mbps")) +
-                                0.1 * qp->hp.m_curRate);
+                                0.1 * qp->hp.m_curRate); // gamma (EWMA param) = 0.9 for delay
                 }
                 else
                 {
                     max_c = qp->hp.u;
                     new_rate = (0.7 * (qp->hp.m_curRate / max_c + DataRate("150Mbps")) +
-                                0.3 * qp->hp.m_curRate);
+                                0.3 * qp->hp.m_curRate); // gamma (EWMA param) = 0.7
                 }
                 if (new_rate < m_minRate)
                 {
@@ -1800,14 +1800,17 @@ void
 RdmaHw::UpdateRatePatchedTimely(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, bool us)
 {
     uint32_t next_seq = qp->snd_nxt;
-    uint64_t rtt = Simulator::Now().GetTimeStep() - ch.ack.ih.ts;
+    uint64_t currTime = Simulator::Now().GetNanoSeconds();
+    uint64_t rtt = currTime - ch.ack.ih.ts;
     bool print = !us;
     if (qp->tmly.m_lastUpdateSeq != 0)
     { // not first RTT
         int64_t new_rtt_diff = (int64_t)rtt - (int64_t)qp->tmly.lastRtt;
+        qp->tmly.lastRtt = rtt;
         double rtt_diff = (1 - m_tmly_alpha) * qp->tmly.rttDiff + m_tmly_alpha * new_rtt_diff;
         double gradient = rtt_diff / m_tmly_minRtt;
         double weight;
+        DataRate new_rate;
         double error;
 #if PRINT_LOG
         if (print)
@@ -1822,13 +1825,12 @@ RdmaHw::UpdateRatePatchedTimely(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHead
         if (rtt < m_tmly_TLow) // newRTT < Tlow
         {
             // rate = rate + rai
-            ChangeRate(qp, qp->tmly.m_curRate + m_rai);
+            new_rate = qp->tmly.m_curRate + m_rai;
         }
         else if (rtt > m_tmly_THigh) // newRTT > Thigh
         {
             //  rate = rate * (1 - beta(1 - Thigh / new_rtt))
-            ChangeRate(qp,
-                       qp->tmly.m_curRate * (1 - m_tmly_beta * (1 - (double)m_tmly_THigh / rtt)));
+            new_rate = qp->tmly.m_curRate * (1 - m_tmly_beta * (1 - (double)m_tmly_THigh / rtt));
         }
         else
         {
@@ -1845,12 +1847,12 @@ RdmaHw::UpdateRatePatchedTimely(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHead
             {
                 weight = 2.0 * gradient + 0.5;
             }
-            error = (rtt - m_ptmly_RttRef) * 1.0 / m_ptmly_RttRef;
-            ChangeRate(qp,
-                       m_rai * (1 - weight) +
-                           qp->tmly.m_curRate * (1 - m_ptmly_beta * error * weight));
+            error = ((double)rtt - (double)m_ptmly_RttRef) / m_ptmly_RttRef;
+            new_rate =
+                m_rai * (1 - weight) + qp->tmly.m_curRate * (1 - m_ptmly_beta * error * weight);
         }
-        qp->tmly.m_curRate = std::max(m_minRate, std::min(qp->m_max_rate, qp->m_rate));
+        qp->tmly.m_curRate = std::max(m_minRate, std::min(qp->m_max_rate, new_rate));
+        ChangeRate(qp, new_rate);
         qp->tmly.rttDiff = rtt_diff;
 #if PRINT_LOG
         if (print)
