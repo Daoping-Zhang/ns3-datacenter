@@ -36,13 +36,13 @@ M=K*K
 # algs=list(["dcqcn", "powerInt", "hpcc", "powerDelay", "timely"])
 # algs=list(["powerInt", "hpcc", "powerDelay"])
 
-algnames={}
-algnames["dcqcn"]="DCQCN"
-algnames["powerInt"]="PowerTCP-INT"
-algnames["hpcc"]="HPCC"
-algnames["powerDelay"]="PowerTCP-Delay"
-algnames["timely"]="TIMELY"
-algnames["DCTCP"]="DCTCP"
+# algnames={}
+# algnames["dcqcn"]="DCQCN"
+# algnames["powerInt"]="PowerTCP-INT"
+# algnames["hpcc"]="HPCC"
+# algnames["powerDelay"]="PowerTCP-Delay"
+# algnames["timely"]="TIMELY"
+# algnames["DCTCP"]="DCTCP"
 
 
 markers={}
@@ -52,6 +52,9 @@ markers["hpcc"]="^"
 markers["powerDelay"]="o"
 markers["timely"]="*"
 markers["DCTCP"]="."
+markers["patchedTimely"]="v"
+markers["swift"]=">"
+markers["rttqcn"]="<"
 
 colors={}
 colors["dcqcn"]='brown'
@@ -60,6 +63,9 @@ colors["hpcc"]='blue'
 colors["powerDelay"]='green'
 colors["timely"]='cyan'
 colors["DCTCP"]='black'
+colors["patchedTimely"]="purple"
+colors["swift"]="orange"
+colors["rttqcn"]="magenta"
 
 
 
@@ -82,7 +88,8 @@ REQ_SIZE=list(["1000000", "2000000", "4000000", "6000000", "8000000"])
 
 req="0"
 query="0"
-algs=list(["dcqcn", "powerInt", "hpcc", "powerDelay", "timely"])
+# algs=list(["dcqcn", "powerInt", "hpcc", "powerDelay", "timely"])
+algs = list(["powerDelay","timely","patchedTimely","swift","rttqcn"])
 load="0.8"
 plt.rcParams.update({'font.size': 18})
 
@@ -180,7 +187,8 @@ figlegend.savefig(plots_dir+'all-legend.pdf')
 
 plt.rcParams.update({'font.size': 20})
 
-algs=list([ "powerInt", "hpcc", "powerDelay"])
+# algs=list([ "powerInt", "hpcc", "powerDelay"])
+algs = list(["powerDelay","timely","patchedTimely","swift","rttqcn"])
 
 req="0"
 query="0"
@@ -235,7 +243,8 @@ fig.savefig(plots_dir+'fct-shortLoad'+'.png')
 
 #######################
 
-algs=list([ "powerInt", "hpcc", "powerDelay"])
+# algs=list([ "powerInt", "hpcc", "powerDelay"])
+algs = list(["powerDelay","timely","patchedTimely","swift","rttqcn"])
 
 req="0"
 query="0"
