@@ -7,7 +7,8 @@ MIX_DUMP=$NS3/examples/PowerTCP/mix
 mkdir $RES_DUMP
 mkdir $MIX_DUMP
 mkdir $RES_RESULTS
-algs=(0 1 2 3 4 5 6 7 8)
+# algs=(0 1 2 3 4 5 6 7 8)
+algs=(3 4 6 7 8)
 
 algNames=("dcqcn" "powerInt" "hpcc" "powerDelay" "timely" "dctcp" "patchedTimely" "swift" "rttqcn")
 CCMODE=(1 3 3 3 7 8 11 12 13)
@@ -67,7 +68,7 @@ for load in ${LOADS[@]};do
 
 		sleep 5
 		# Check how many cores are being used.
-		while [[ $(ps aux|grep "powertcp-evaluation-workload-optimized"|wc -l) -gt 38 ]];do
+		while [[ $(ps aux|grep "powertcp-evaluation-workload-optimized"|wc -l) -gt 80 ]];do
 			echo "Waiting for cpu cores.... $N-th experiment "
 			sleep 60
 		done
@@ -120,7 +121,7 @@ for req in ${REQ_RATE[@]};do
 
 		sleep 5
 		# Check how many cores are being used.
-		while [[ $(ps aux|grep "powertcp-evaluation-workload-optimized"|wc -l) -gt 38 ]];do
+		while [[ $(ps aux|grep "powertcp-evaluation-workload-optimized"|wc -l) -gt 80 ]];do
 			echo "Waiting for cpu cores.... $N-th experiment "
 			sleep 60
 		done
@@ -172,7 +173,7 @@ for query in ${REQ_SIZE[@]};do
 
 		sleep 5
 		# Check how many cores are being used.
-		while [[ $(ps aux|grep "evaluation-workload-optimized"|wc -l) -gt 38 ]];do
+		while [[ $(ps aux|grep "evaluation-workload-optimized"|wc -l) -gt 80 ]];do
 			echo "Waiting for cpu cores.... $N-th experiment "
 			sleep 60
 		done
@@ -193,7 +194,7 @@ echo "#      FINISHED BURST-4 EXPERIMENTS      #"
 echo "##########################################"
 
 
-while [[ $(ps aux|grep "powertcp-evaluation-workload-optimized"|wc -l) -gt 38 ]];do
+while [[ $(ps aux|grep "powertcp-evaluation-workload-optimized"|wc -l) -gt 80 ]];do
 	echo "Waiting for cpu cores.... $N-th experiment "
 	sleep 60
 done
