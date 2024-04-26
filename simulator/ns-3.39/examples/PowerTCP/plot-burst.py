@@ -19,7 +19,7 @@ plots_dir="./plot_burst/"
 os.makedirs(plots_dir,exist_ok=True)
 
 # plots_dir="/home/vamsi/Powertcp-NSDI/"
-plt.rcParams.update({'font.size': 18,'font.family':['PingFang SC','Noto Sans CJK SC']})
+plt.rcParams.update({'font.size': 18,'font.family':'Source Han Sans'})
 
 
 algs=list(["powerDelay", "timely","patchedTimely","swift","rttqcn"])
