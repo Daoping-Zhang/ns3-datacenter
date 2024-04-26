@@ -19,7 +19,7 @@ plots_dir="./plot_workload/"
 os.makedirs(plots_dir,exist_ok=True)
 
 # plots_dir="/home/vamsi/Powertcp-NSDI/"
-plt.rcParams.update({'font.size': 18})
+plt.rcParams.update({'font.size': 18,'font.family':'PingFang SC'})
 
 
 
@@ -106,8 +106,8 @@ for alg in algs:
 for load in ["0.2","0.6"]:
     fig,ax = plt.subplots(1,1)
     ax.set_label("Flow size")
-    ax.set_ylabel("99.9-pct FCT slowdown")
-    ax.set_xlabel("Flow size (bytes)")
+    ax.set_ylabel("99.9 百分位流完成时间减缓倍数")
+    ax.set_xlabel("流大小（以字节计）")
     ax.set_yscale('log')
     ax.set_ylim(1,20)
     ax.set_xticks(fS)
@@ -220,8 +220,8 @@ for alg in algs:
     ax.plot(loadInt,fcts99,label=algnames[alg],marker=markers[alg],lw=2,markersize=10,c=colors[alg])
     fctsall[alg]=fcts99
 
-ax.set_xlabel('load (%)')
-ax.set_ylabel('99.9-pct FCT slowdown')
+ax.set_xlabel('负载 (%)')
+ax.set_ylabel('99.9 百分位流完成时间减缓倍数')
 # fig.savefig(plots_dir+'fct'+'.pdf')
 # ax.legend(framealpha=0)
 fig.tight_layout()
@@ -276,8 +276,8 @@ for alg in algs:
     ax.plot(loadInt,fcts99,label=algnames[alg],marker=markers[alg],lw=2,markersize=10,c=colors[alg])
     fctsall[alg]=fcts99
 
-ax.set_xlabel('load (%)')
-ax.set_ylabel('99.9-pct FCT slowdown')
+ax.set_xlabel('负载 (%)')
+ax.set_ylabel('99.9 百分位流完成时间减缓倍数')
 # fig.savefig(plots_dir+'fct'+'.pdf')
 # ax.legend(framealpha=0)
 fig.tight_layout()
@@ -335,8 +335,8 @@ for alg in algs:
     ax.plot(REQ_RATE,fcts99,label=algnames[alg],marker=markers[alg],lw=2,markersize=10,c=colors[alg])
     fctsall[alg]=fcts99
 
-ax.set_xlabel('Request rate')
-ax.set_ylabel('99.9-pct FCT slowdown')
+ax.set_xlabel('请求速率')
+ax.set_ylabel('99.9 百分位流完成时间减缓倍数')
 fig.tight_layout()
 fig.savefig(plots_dir+'fct-shortRate'+'.pdf')
 fig.savefig(plots_dir+'fct-shortRate'+'.png')
@@ -388,8 +388,8 @@ for alg in algs:
     ax.plot(REQ_RATE,fcts99,label=algnames[alg],marker=markers[alg],lw=2,markersize=10,c=colors[alg])
     fctsall[alg]=fcts99
 
-ax.set_xlabel('Request rate')
-ax.set_ylabel('99.9-pct FCT slowdown')
+ax.set_xlabel('请求速率')
+ax.set_ylabel('99.9 百分位流完成时间减缓倍数')
 fig.tight_layout()
 fig.savefig(plots_dir+'fct-longRate'+'.pdf')
 fig.savefig(plots_dir+'fct-longRate'+'.png')
@@ -444,8 +444,8 @@ for alg in algs:
     ax.plot(np.arange(len(REQ_SIZE)),fcts99,label=algnames[alg],marker=markers[alg],lw=2,markersize=10,c=colors[alg])
     fctsall[alg]=fcts99
 
-ax.set_xlabel('Request size (MB)')
-ax.set_ylabel('99.9-pct FCT slowdown')
+ax.set_xlabel('请求大小 (MB)')
+ax.set_ylabel('99.9 百分位流完成时间减缓倍数')
 fig.tight_layout()
 fig.savefig(plots_dir+'fct-shortBurst4'+'.pdf')
 fig.savefig(plots_dir+'fct-shortBurst4'+'.png')
@@ -499,8 +499,8 @@ for alg in algs:
     ax.plot(np.arange(len(REQ_SIZE)),fcts99,label=algnames[alg],marker=markers[alg],lw=2,markersize=10,c=colors[alg])
     fctsall[alg]=fcts99
 
-ax.set_xlabel('Request size (MB)')
-ax.set_ylabel('99.9-pct FCT slowdown')
+ax.set_xlabel('请求大小 (MB)')
+ax.set_ylabel('99.9 百分位流完成时间减缓倍数')
 fig.tight_layout()
 fig.savefig(plots_dir+'fct-longBurst4'+'.pdf')
 fig.savefig(plots_dir+'fct-longBurst4'+'.png')
@@ -534,7 +534,7 @@ fig,ax=plt.subplots(1,1)
 ax.set_xticks([0,50*K,100*K,150*K,200*K])
 ax.set_xticklabels(["0","50","100","150","200"])
 ax.set_ylabel("CDF")
-ax.set_xlabel("Buffer occupancy (KB)")
+ax.set_xlabel("缓冲区占用 (KB)")
 
 for alg in algs:
     df = pd.read_csv(results+'result-'+alg+'-'+load+'-'+req+'-'+query+'.buf',delimiter=' ',usecols=[3],names=["qlen"])
@@ -572,7 +572,7 @@ ax.set_xticks([0,0.5*M,1*M,1.5*M,2*M,2.5*M])
 ax.set_xticklabels(["0","0.5","1","1.5","2","2.5"])
 ax.set_ylabel("CDF")
 ax.set_xlim(-50*K,1.5*M)
-ax.set_xlabel("Buffer occupancy (MB)")
+ax.set_xlabel("缓冲区占用 (MB)")
 
 cdfs=pd.DataFrame()
 

@@ -19,8 +19,7 @@ plots_dir="./plot_burst/"
 os.makedirs(plots_dir,exist_ok=True)
 
 # plots_dir="/home/vamsi/Powertcp-NSDI/"
-plt.rcParams.update({'font.size': 18})
-
+plt.rcParams.update({'font.size': 18,'font.family':'PingFang SC'})
 
 
 algs=list(["dcqcn", "powerInt", "hpcc", "powerDelay", "timely", "dctcp","patchedTimely","swift","rttqcn"])
@@ -39,7 +38,7 @@ lenged_elements=list()
 
 # red green blue brownm grey
 colorsBurst=list(["#1979a9","red", "#478fb5","tab:brown","tab:gray"])
-labels=list(['Throughput','Qlen'])
+labels=list(['吞吐量','队列长度'])
 
 for i in range(1,3):
     lenged_elements.append(Line2D([0],[0], color=colorsBurst[i-1],lw=6, label=labels[i-1]))
@@ -55,7 +54,7 @@ for alg in algs:
     ax1=ax.twinx()
     ax.set_yticks([10e9,25e9,40e9,80e9,100e9])
     ax.set_yticklabels(["10","25","40","80","100"])
-    ax.set_ylabel("Throughput (Gbps)")
+    ax.set_ylabel("吞吐量 (Gbps)")
 
     start=0.15
     xtics=[i*0.001+start for i in range(0,6)]
@@ -63,12 +62,12 @@ for alg in algs:
     xticklabels=[str(i) for i in range(0,6)]
     ax.set_xticklabels(xticklabels)
 
-    ax.set_xlabel("Time (ms)")
+    ax.set_xlabel("时间 (ms)")
     ax.set_xlim(0.1495,0.154)
-    ax.plot(df["time"],df["th"],label="Throughput",c='#1979a9',lw=2)
+    ax.plot(df["time"],df["th"],label="吞吐量",c='#1979a9',lw=2)
     ax1.set_ylim(0,600)
-    ax1.set_ylabel("Queue length (KB)")
-    ax1.plot(df["time"],df["qlen"]/(1000),c='r',label="Qlen",lw=2)
+    ax1.set_ylabel("队列长度 (KB)")
+    ax1.plot(df["time"],df["qlen"]/(1000),c='r',label="队列长度",lw=2)
     # ax.legend(loc=1)
     # ax1.legend(loc=3)
     # fig.legend(loc=2,ncol=2,framealpha=0,borderpad=-0.1)
@@ -83,19 +82,19 @@ for alg in algs:
     ax3=ax2.twinx()
     ax2.set_yticks([10e9,25e9,40e9,80e9,100e9])
     ax2.set_yticklabels(["10","25","40","80","100"])
-    ax2.set_ylabel("Throughput (Gbps)")
+    ax2.set_ylabel("吞吐量 (Gbps)")
 
     start=0.15
     xtics=[i*0.001+start for i in range(0,6)]
     ax2.set_xticks(xtics)
     xticklabels=[str(i) for i in range(0,6)]
     ax2.set_xticklabels(xticklabels)
-    ax2.set_xlabel("Time (ms)")
+    ax2.set_xlabel("时间 (ms)")
     ax2.set_xlim(0.1495,0.154)
-    ax2.plot(df["time"],df["th"],label="Throughput",c='#1979a9',lw=2)
-    ax3.set_ylabel("Normalized Power")
+    ax2.plot(df["time"],df["th"],label="吞吐量",c='#1979a9',lw=2)
+    ax3.set_ylabel("归一化功率")
     ax3.set_ylim(0,2)
-    ax3.plot(df["time"],df["power"],c='g',label="NormPower",lw=2)
+    ax3.plot(df["time"],df["power"],c='g',label="归一化功率",lw=2)
     fig1.tight_layout()
     fig1.savefig(plots_dir+alg+'-power.pdf')
     fig1.savefig(plots_dir+alg+'-power.png')

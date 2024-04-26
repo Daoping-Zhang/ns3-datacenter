@@ -19,11 +19,11 @@ plots_dir="./plot_fairness/"
 os.makedirs(plots_dir,exist_ok=True)
 
 # plots_dir="/home/vamsi/Powertcp-NSDI/"
-plt.rcParams.update({'font.size': 18})
+plt.rcParams.update({'font.size': 18,'font.family':'PingFang SC'})
 
 
 
-algs=list(["dcqcn", "powerInt", "hpcc", "powerDelay", "timely", "dctcp","patchedTimely","swift","rttqcn"])
+algs=list(["powerDelay", "timely","patchedTimely","swift","rttqcn"])
 algnames={"dcqcn":"DCQCN","powerInt":"PowerTCP","hpcc":"HPCC","powerDelay":r'$\theta-PowerTCP$',"timely":"TIMELY","DCTCP":"DCTCP","patchedTimely":"Patched TIMELY","swift":"Swift","rttqcn":"RTT-QCN"}
 
 
@@ -52,8 +52,8 @@ for alg in algs:
     ax.xaxis.grid(True,ls='--')
     ax.yaxis.grid(True,ls='--')
 
-    ax.set_ylabel("Throughput (Gbps)")
-    ax.set_xlabel("Time (s)")
+    ax.set_ylabel("吞吐量 (Gbps)")
+    ax.set_xlabel("时间 (s)")
     # fig.suptitle(alg)
 
     df1 = pd.read_csv(results+'result-'+alg+'.1',delimiter=' ',usecols=[5,7],names=["th","time"])
