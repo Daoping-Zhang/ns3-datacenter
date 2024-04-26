@@ -19,7 +19,7 @@ plots_dir="./plot_workload/"
 os.makedirs(plots_dir,exist_ok=True)
 
 # plots_dir="/home/vamsi/Powertcp-NSDI/"
-plt.rcParams.update({'font.size': 18,'font.family':'PingFang SC'})
+plt.rcParams.update({'font.size': 18,'font.family':['DejaVu Sans','Source Han Sans SC','Noto Sans CJK SC']})
 
 
 

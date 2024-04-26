@@ -19,10 +19,10 @@ plots_dir="./plot_burst/"
 os.makedirs(plots_dir,exist_ok=True)
 
 # plots_dir="/home/vamsi/Powertcp-NSDI/"
-plt.rcParams.update({'font.size': 18,'font.family':'PingFang SC'})
+plt.rcParams.update({'font.size': 18,'font.family':['PingFang SC','Noto Sans CJK SC']})
 
 
-algs=list(["dcqcn", "powerInt", "hpcc", "powerDelay", "timely", "dctcp","patchedTimely","swift","rttqcn"])
+algs=list(["powerDelay", "timely","patchedTimely","swift","rttqcn"])
 algnames={"dcqcn":"DCQCN","powerInt":"PowerTCP","hpcc":"HPCC","powerDelay":r'$\theta-PowerTCP$',"timely":"TIMELY","DCTCP":"DCTCP","patchedTimely":"Patched TIMELY","swift":"Swift","rttqcn":"RTT-QCN"}
 
 
