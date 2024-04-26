@@ -98,9 +98,10 @@ def calculate_jains_index(throughputs):
 
 # Additional plotting for Jain's Fairness Index
 for alg in algs:
-    fig, ax2 = plt.subplots(1, 1, figsize=(10, 10))
+    fig, ax2 = plt.subplots(1, 1)
     ax2.xaxis.grid(True, ls='--')
     ax2.yaxis.grid(True, ls='--')
+    ax2.set_ylim(0, 1)  # Assuming Jain's fairness index varies between 0 and 1
 
     ax2.set_ylabel("公平性指数")
     ax2.set_xlabel("时间 (s)")
