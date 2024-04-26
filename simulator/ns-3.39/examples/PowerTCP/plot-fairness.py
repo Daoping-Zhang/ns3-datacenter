@@ -76,7 +76,50 @@ for alg in algs:
     fig.tight_layout()
     fig.savefig(plots_dir+alg+'.pdf')
     fig.savefig(plots_dir+alg+'.png')
+    print("Saved fairness throughput plot for",alg)
 
 figlegend.tight_layout()
 figlegend.legend(handles=lenged_elements,loc=9,ncol=5, framealpha=0,fontsize=48)
 # figlegend.savefig(plots_dir+'/fairness/fair-legend.pdf')
+
+###### Jain's Fairness Index ########
+
+def calculate_jains_index(throughputs):
+    """Calculate Jain's Fairness Index for a list of throughput values."""
+    throughputs = [x for x in throughputs if x > 0]  # Filter out zero throughputs
+    if not throughputs:  # If all throughputs are zero, return zero or an appropriate value
+        return 0
+    sum_x = sum(throughputs)
+    sum_x_squared = sum(x ** 2 for x in throughputs)
+    n = len(throughputs)
+    if sum_x_squared == 0:  # To avoid division by zero if all throughputs are zero
+        return 0
+    return (sum_x ** 2) / (n * sum_x_squared)
+
+# Additional plotting for Jain's Fairness Index
+for alg in algs:
+    fig, ax2 = plt.subplots(1, 1, figsize=(10, 10))
+    ax2.xaxis.grid(True, ls='--')
+    ax2.yaxis.grid(True, ls='--')
+
+    ax2.set_ylabel("公平性指数")
+    ax2.set_xlabel("时间 (s)")
+
+    dfs = [
+        pd.read_csv(results+'result-'+alg+'.1', delimiter=' ', usecols=[5,7], names=["th","time"]),
+        pd.read_csv(results+'result-'+alg+'.2', delimiter=' ', usecols=[5,7], names=["th","time"]),
+        pd.read_csv(results+'result-'+alg+'.3', delimiter=' ', usecols=[5,7], names=["th","time"]),
+        pd.read_csv(results+'result-'+alg+'.4', delimiter=' ', usecols=[5,7], names=["th","time"])
+    ]
+
+    times = dfs[0]["time"]
+    fairness_indices = [calculate_jains_index([df.loc[df['time'] == t, 'th'].iloc[0] for df in dfs]) for t in times]
+
+    ax2.set_xlim(0, 0.7)
+
+    ax2.plot(times, fairness_indices, c='blue')
+
+    fig.tight_layout()
+    fig.savefig(plots_dir+alg+'_jain.pdf')
+    fig.savefig(plots_dir+alg+'_jain.png')
+    print("Saved Jain's fairness index plot for", alg)
