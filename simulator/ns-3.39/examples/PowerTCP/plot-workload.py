@@ -301,7 +301,7 @@ fig.savefig(plots_dir+'fct-longLoad'+'.png')
 
 #######################
 
-algs=list([ "powerInt", "hpcc", "powerDelay"])
+algs=list(["powerDelay","timely","patchedTimely","swift","rttqcn"])
 
 req="0"
 query="2000000"
@@ -354,7 +354,7 @@ fig.savefig(plots_dir+'fct-shortRate'+'.png')
 
 #######################
 
-algs=list([ "powerInt", "hpcc", "powerDelay"])
+algs=list(["powerDelay","timely","patchedTimely","swift","rttqcn"])
 
 req="0"
 query="2000000"
@@ -407,7 +407,7 @@ fig.savefig(plots_dir+'fct-longRate'+'.png')
 
 #######################
 
-algs=list([ "powerInt", "hpcc", "powerDelay"])
+algs=list(["powerDelay","timely","patchedTimely","swift","rttqcn"])
 
 req="4"
 query="0"
@@ -463,7 +463,7 @@ fig.savefig(plots_dir+'fct-shortBurst4'+'.png')
 
 #######################
 
-algs=list([ "powerInt", "hpcc", "powerDelay"])
+algs=list(["powerDelay","timely","patchedTimely","swift","rttqcn"])
 
 req="1"
 query="0"
@@ -520,7 +520,7 @@ fig.savefig(plots_dir+'fct-longBurst4'+'.png')
 
 #######################
 
-algs=list(["powerInt", "hpcc", "powerDelay"])
+algs=list(["powerDelay","timely","patchedTimely","swift","rttqcn"])
 alg="powerInt"
 load="0.9"
 query="2000000"
@@ -559,7 +559,7 @@ fig.savefig(plots_dir+'buf-load'+'.png')
 
 #######################
 
-algs=list(["powerInt", "hpcc", "powerDelay"])
+algs=list(["powerDelay","timely","patchedTimely","swift","rttqcn"])
 alg="powerInt"
 load="0.8"
 query="2000000"
