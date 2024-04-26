@@ -24,7 +24,7 @@ plt.rcParams.update({'font.size': 18,'font.family':'Source Han Sans'})
 
 
 algs=list(["dcqcn", "powerInt", "hpcc", "powerDelay", "timely", "dctcp","patchedTimely","swift","rttqcn"])
-algnames={"dcqcn":"DCQCN","powerInt":"PowerTCP","hpcc":"HPCC","powerDelay":r'$\theta-PowerTCP$',"timely":"TIMELY","DCTCP":"DCTCP","patchedTimely":"Patched TIMELY","swift":"Swift","rttqcn":"RTT-QCN"}
+algnames={"dcqcn":"DCQCN","powerInt":"PowerTCP","hpcc":"HPCC","powerDelay":"θ-PowerTCP","timely":"TIMELY","DCTCP":"DCTCP","patchedTimely":"Patched TIMELY","swift":"Swift","rttqcn":"RTT-QCN"}
 
 #%%
 
@@ -93,7 +93,7 @@ algs = list(["powerDelay","timely","patchedTimely","swift","rttqcn"])
 load="0.8"
 plt.rcParams.update({'font.size': 18})
 
-figlegend = pylab.figure(figsize=(32.5,1.5))
+figlegend = pylab.figure(figsize=(40.5,1.5))
 lenged_elements=list()
 
 for alg in algs:
@@ -166,7 +166,7 @@ figlegend.savefig(plots_dir+'fct-legend.pdf')
 #         print ( 100*(fctsShort[alg][load]-fctsShort["powerDelay"][load])/fctsShort[alg][load], alg, load)
 #%%
 
-figlegend = pylab.figure(figsize=(32.5,1.5))
+figlegend = pylab.figure(figsize=(40.5,1.5))
 lenged_elements=list()
 
 for alg in algs:
