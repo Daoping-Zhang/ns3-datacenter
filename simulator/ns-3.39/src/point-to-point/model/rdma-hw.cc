@@ -2135,6 +2135,9 @@ void
 RdmaHw::HandleAckRttQcn(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch) const
 {
     uint64_t rtt = Simulator::Now().GetTimeStep() - ch.ack.ih.GetTs();
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> distr(0, 1000);
     bool ecn = false;
     if (rtt <= rtt_qcn_tmin)
     {
@@ -2143,7 +2146,7 @@ RdmaHw::HandleAckRttQcn(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch) 
     else if (rtt <= rtt_qcn_tmax)
     {
         auto thresh = (rtt - rtt_qcn_tmin) * 1000.0 / (rtt_qcn_tmax - rtt_qcn_tmin);
-        auto rand_num = rand() % 1000;
+        auto rand_num = distr(gen);
         ecn = rand_num < thresh;
     }
     else
