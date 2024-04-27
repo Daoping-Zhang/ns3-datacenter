@@ -693,6 +693,7 @@ RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader& ch)
         break;
     case CC_MODE::POWERQCN:
         HandleAckPowerQcn(qp, p, ch);
+        break;
     default:
         NS_ABORT_MSG("Unknown CC mode");
         break;
@@ -2197,42 +2198,50 @@ RdmaHw::HandleAckPowerQcn(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> distr(0, 1000);
     uint64_t prev_rtt = powerqcn_prev_rtt == 0 ? rtt : powerqcn_prev_rtt;
+    if (powerqcn_last_update < ch.ack.ih.GetTs())
+    {
+        powerqcn_prev_rtt = rtt;
+        powerqcn_last_update = Simulator::Now().GetTimeStep();
+    }
     double rtt_gradient = (rtt - prev_rtt) / rtt_qcn_tmin;
-    double thresh = 0.0; // if rand(0,1000) < thresh, then ECN
-    powerqcn_prev_rtt = rtt;
-    // scale according to current RTT
+
+    bool rtt_ecn = false;
     if (rtt <= rtt_qcn_tmin)
     {
-        thresh = 0.0;
+        rtt_ecn = false;
     }
     else if (rtt <= rtt_qcn_tmax)
     {
-        thresh = (rtt - rtt_qcn_tmin) * 1000.0 / (rtt_qcn_tmax - rtt_qcn_tmin);
+        auto thresh = (rtt - rtt_qcn_tmin) * 1000.0 / (rtt_qcn_tmax - rtt_qcn_tmin);
+        auto rand_num = distr(gen);
+        rtt_ecn = rand_num < thresh;
     }
     else
     {
-        thresh = 1000.0;
+        rtt_ecn = true;
     }
-    // scale according to RTT gradient (% of min RTT)
-    if (rtt_gradient <= 0)
+
+    bool gradient_ecn = false;
+    if (rtt_gradient <= -0.25)
     {
-        thresh += 0.0;
+        gradient_ecn = false;
     }
-    else if (rtt_gradient >= 0.25)
-    {
-        thresh += 250.0;
-    }
+    // else if (rtt_gradient <= 0.25)
+    // {
+    //     auto thresh = (rtt_gradient + 0.25) * 1000.0 / 0.5;
+    //     auto rand_num = distr(gen);
+    //     gradient_ecn = rand_num < thresh;
+    // }
     else
     {
-        thresh += 1000.0 * rtt_gradient;
+        gradient_ecn = true;
     }
-    bool ecn = distr(gen) < thresh;
-    // no worry if thresh is over 1000!
+
     // window in mtu (1000), not in bytes / seq#
     auto cwnd = qp->rttqcn.curr_win;
     if (cwnd < m_mtu)
     {
-        if (ecn)
+        if (rtt_ecn)
         {
             cwnd *= 1 - rtt_qcn_beta;
         }
@@ -2243,18 +2252,33 @@ RdmaHw::HandleAckPowerQcn(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch
     }
     else
     {
-        if (ecn)
+        if (rtt_ecn)
         {
-            cwnd -= 0.5 * m_mtu;
+            // cwnd -= 0.5 * m_mtu;
+            if (gradient_ecn)
+            {
+                cwnd -= 0.7 * m_mtu;
+            }
+            else
+            {
+                cwnd -= 0.5 * m_mtu;
+            }
         }
-        else
+        if (!rtt_ecn)
         {
-            // attempt to improve: multiply by 10
-            cwnd += m_mtu * 10.0 / cwnd;
+            // cwnd += m_mtu * 10.0 / cwnd;
+            if (gradient_ecn)
+            {
+                cwnd += m_mtu * 8.0 / cwnd;
+            }
+            else
+            {
+                cwnd += m_mtu * 20.0 / cwnd;
+            }
         }
     }
     std::cout << "[RTT-QCN] node: " << m_node->GetId() << ", cwnd: " << qp->rttqcn.curr_win << "->"
-              << cwnd << ", RTT: " << rtt << ", ecn: " << ecn << std::endl;
+              << cwnd << ", RTT: " << rtt << ", ecn: " << rtt_ecn << gradient_ecn << std::endl;
     qp->rttqcn.curr_win = cwnd;
     qp->m_win = (uint32_t)cwnd;
 }

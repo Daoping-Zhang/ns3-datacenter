@@ -239,7 +239,8 @@ class RdmaHw : public Object
      * PowerQCN
      * Improve RTT-QCN by using gradient alongside RTT
      ********************/
-    uint64_t powerqcn_prev_rtt;
+    uint64_t powerqcn_prev_rtt = 0;    // previous RTT, used to calculate gradient
+    uint64_t powerqcn_last_update = 0; // last time we update prev_rtt
     void HandleAckPowerQcn(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch);
 };
 
