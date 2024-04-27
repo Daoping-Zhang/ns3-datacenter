@@ -227,13 +227,20 @@ class RdmaHw : public Object
     /*********************
      * RTT-QCN
      ********************/
-    uint64_t rtt_qcn_tmin; // max rtt value to generate no ecn
-    uint64_t rtt_qcn_tmax; // min rtt value to always generate ecn
+    uint64_t rtt_qcn_tmin; // max rtt value to generate NO ecn
+    uint64_t rtt_qcn_tmax; // min rtt value to ALWAYS generate ecn
     double
         rtt_qcn_alpha; // additive increase when cwnd < 1; use original value, don't multiply by mtu
     double rtt_qcn_beta; // multiplicative decrease when cwnd > 1; use original value, don't
                          // multiply by mtu
     void HandleAckRttQcn(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch) const;
+
+    /*********************
+     * PowerQCN
+     * Improve RTT-QCN by using gradient alongside RTT
+     ********************/
+    uint64_t powerqcn_prev_rtt;
+    void HandleAckPowerQcn(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch);
 };
 
 enum CC_MODE
@@ -247,7 +254,8 @@ enum CC_MODE
     HPCC_PINT = 10,
     PATCHED_TIMELY = 11,
     SWIFT = 12,
-    RTT_QCN = 13
+    RTT_QCN = 13,
+    POWERQCN = 14,
 };
 
 } /* namespace ns3 */

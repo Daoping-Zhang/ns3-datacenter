@@ -1073,6 +1073,7 @@ main(int argc, char* argv[])
     case CC_MODE::TIMELY:
     case CC_MODE::PATCHED_TIMELY:
     case CC_MODE::RTT_QCN:
+    case CC_MODE::POWERQCN:
         // timely or patched timely, use ts
         IntHeader::mode = IntHeader::TS;
         break;

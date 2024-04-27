@@ -23,6 +23,7 @@
 #include <cstdint>
 #include <iostream>
 #include <ostream>
+#include <random>
 
 namespace ns3
 {
@@ -690,7 +691,10 @@ RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader& ch)
     case CC_MODE::RTT_QCN:
         HandleAckRttQcn(qp, p, ch);
         break;
+    case CC_MODE::POWERQCN:
+        HandleAckPowerQcn(qp, p, ch);
     default:
+        NS_ABORT_MSG("Unknown CC mode");
         break;
     }
     // ACK may advance the on-the-fly window, allowing more packets to send
@@ -2154,6 +2158,76 @@ RdmaHw::HandleAckRttQcn(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch) 
         ecn = true;
     }
 
+    // window in mtu (1000), not in bytes / seq#
+    auto cwnd = qp->rttqcn.curr_win;
+    if (cwnd < m_mtu)
+    {
+        if (ecn)
+        {
+            cwnd *= 1 - rtt_qcn_beta;
+        }
+        else
+        {
+            cwnd += rtt_qcn_alpha * m_mtu;
+        }
+    }
+    else
+    {
+        if (ecn)
+        {
+            cwnd -= 0.5 * m_mtu;
+        }
+        else
+        {
+            // attempt to improve: multiply by 10
+            cwnd += m_mtu * 10.0 / cwnd;
+        }
+    }
+    std::cout << "[RTT-QCN] node: " << m_node->GetId() << ", cwnd: " << qp->rttqcn.curr_win << "->"
+              << cwnd << ", RTT: " << rtt << ", ecn: " << ecn << std::endl;
+    qp->rttqcn.curr_win = cwnd;
+    qp->m_win = (uint32_t)cwnd;
+}
+
+void
+RdmaHw::HandleAckPowerQcn(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
+{
+    uint64_t rtt = Simulator::Now().GetTimeStep() - ch.ack.ih.GetTs();
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> distr(0, 1000);
+    uint64_t prev_rtt = powerqcn_prev_rtt == 0 ? rtt : powerqcn_prev_rtt;
+    double rtt_gradient = (rtt - prev_rtt) / rtt_qcn_tmin;
+    double thresh = 0.0; // if rand(0,1000) < thresh, then ECN
+    powerqcn_prev_rtt = rtt;
+    // scale according to current RTT
+    if (rtt <= rtt_qcn_tmin)
+    {
+        thresh = 0.0;
+    }
+    else if (rtt <= rtt_qcn_tmax)
+    {
+        thresh = (rtt - rtt_qcn_tmin) * 1000.0 / (rtt_qcn_tmax - rtt_qcn_tmin);
+    }
+    else
+    {
+        thresh = 1000.0;
+    }
+    // scale according to RTT gradient (% of min RTT)
+    if (rtt_gradient <= 0)
+    {
+        thresh += 0.0;
+    }
+    else if (rtt_gradient >= 0.25)
+    {
+        thresh += 250.0;
+    }
+    else
+    {
+        thresh += 1000.0 * rtt_gradient;
+    }
+    bool ecn = distr(gen) < thresh;
+    // no worry if thresh is over 1000!
     // window in mtu (1000), not in bytes / seq#
     auto cwnd = qp->rttqcn.curr_win;
     if (cwnd < m_mtu)
