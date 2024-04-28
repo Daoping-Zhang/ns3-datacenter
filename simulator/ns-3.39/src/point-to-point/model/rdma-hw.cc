@@ -2197,11 +2197,11 @@ RdmaHw::HandleAckPowerQcn(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> distr(0, 1000);
-    uint64_t prev_rtt = powerqcn_prev_rtt == 0 ? rtt : powerqcn_prev_rtt;
-    if (powerqcn_last_update < ch.ack.ih.GetTs())
+    uint64_t prev_rtt = qp->powerqcn.prev_rtt == 0 ? rtt : qp->powerqcn.prev_rtt;
+    if (qp->powerqcn.prev_rtt < ch.ack.ih.GetTs())
     {
-        powerqcn_prev_rtt = rtt;
-        powerqcn_last_update = Simulator::Now().GetTimeStep();
+        qp->powerqcn.prev_rtt = rtt;
+        qp->powerqcn.last_update = Simulator::Now().GetTimeStep();
     }
     double rtt_gradient = (rtt - prev_rtt) / rtt_qcn_tmin;
 
@@ -2222,7 +2222,7 @@ RdmaHw::HandleAckPowerQcn(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch
     }
 
     bool gradient_ecn = false;
-    if (rtt_gradient <= -0.25)
+    if (rtt_gradient <= 0.25)
     {
         gradient_ecn = false;
     }

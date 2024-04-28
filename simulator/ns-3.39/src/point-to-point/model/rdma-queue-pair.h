@@ -154,6 +154,11 @@ class RdmaQueuePair : public Object
         double curr_win;
     } rttqcn;
 
+    struct {
+        uint64_t prev_rtt;// previous RTT, used to calculate gradient
+        uint64_t last_update;// last time we update prev_rtt
+    } powerqcn;
+
     /***********
      * methods
      **********/

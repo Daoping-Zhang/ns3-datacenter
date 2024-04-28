@@ -88,6 +88,9 @@ RdmaQueuePair::RdmaQueuePair(uint16_t pg,
     swift.m_real_win = 10000.0;
 
     rttqcn.curr_win = 50000.0;
+
+    powerqcn.last_update = 0;
+    powerqcn.prev_rtt = 0;
 }
 
 void
