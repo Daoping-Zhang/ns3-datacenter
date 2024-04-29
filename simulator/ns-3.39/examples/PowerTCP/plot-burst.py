@@ -65,9 +65,15 @@ for alg in algs:
     ax.set_xlabel("时间 (ms)")
     ax.set_xlim(0.1495,0.154)
     ax.plot(df["time"],df["th"],label="吞吐量",c='#1979a9',lw=2)
+    # avg throughput during 0.1495 to 0.154
+    avg_th = df[(df["time"]>=0.1495) & (df["time"]<=0.154)]["th"].mean()
     ax1.set_ylim(0,600)
     ax1.set_ylabel("队列长度 (KB)")
     ax1.plot(df["time"],df["qlen"]/(1000),c='r',label="队列长度",lw=2)
+    # avg qlen during 0.1495 to 0.154
+    avg_qlen = df[(df["time"]>=0.1495) & (df["time"]<=0.154)]["qlen"].mean()
+    min_qlen = df[df["time"] > 0.1502]["qlen"].min()
+    min_qlen_time = df[(df["qlen"] == min_qlen) & (df["time"] >= 0.1502)]["time"].values[0]
     # ax.legend(loc=1)
     # ax1.legend(loc=3)
     # fig.legend(loc=2,ncol=2,framealpha=0,borderpad=-0.1)
@@ -98,7 +104,7 @@ for alg in algs:
     fig1.tight_layout()
     fig1.savefig(plots_dir+alg+'-power.pdf')
     fig1.savefig(plots_dir+alg+'-power.png')
-
+    print("Saved plot for",alg,"with avg throughput",avg_th,"avg qlen",avg_qlen,"reaches min qlen",min_qlen,"at time",min_qlen_time)
 
 figlegend.tight_layout()
 figlegend.legend(handles=lenged_elements,loc=9,ncol=2, framealpha=0,fontsize=48)
