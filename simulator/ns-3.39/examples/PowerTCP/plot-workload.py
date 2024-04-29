@@ -84,6 +84,8 @@ REQ_SIZE=list(["1000000", "2000000", "4000000", "6000000", "8000000"])
 
 # FLOWSIZE VS FCT
 
+# require result-<alg>-<load: 0.2 0.6>-0-0.fct
+
 #######################
 
 req="0"
@@ -183,6 +185,8 @@ figlegend.savefig(plots_dir+'all-legend.pdf')
 
 # LOAD VS FCT - SHORT FLOWS
 
+# require result-<alg>-<loads: 0.2 0.4 0.6 0.8 0.9 0.95>-0-0.fct
+
 #######################
 
 plt.rcParams.update({'font.size': 20})
@@ -240,6 +244,8 @@ fig.savefig(plots_dir+'fct-shortLoad'+'.png')
 #######################
 
 # LOAD VS FCT - LONG FLOWS
+
+# require result-<alg>-<loads: 0.2 0.4 0.6 0.8 0.9 0.95>-0-0.fct
 
 #######################
 
@@ -299,6 +305,8 @@ fig.savefig(plots_dir+'fct-longLoad'+'.png')
 
 # BURSTRATE VS FCT - SHORT FLOWS
 
+# require result-<alg>-0.8-<req: 1 4 8 16>-2M.fct
+
 #######################
 
 algs=list(["powerDelay","timely","patchedTimely","swift","rttqcn"])
@@ -352,6 +360,8 @@ fig.savefig(plots_dir+'fct-shortRate'+'.png')
 
 # BURSTRATE VS FCT - LONG FLOWS
 
+# requires result-<alg>-0.8-<req: 1 4 8 16>-2M.fct
+
 #######################
 
 algs=list(["powerDelay","timely","patchedTimely","swift","rttqcn"])
@@ -404,6 +414,8 @@ fig.savefig(plots_dir+'fct-longRate'+'.png')
 #######################
 
 # BURSTSIZE VS FCT - SHORT FLOWS
+
+# require result-<alg>-0.8-4-<reqsize: 1M 2M 4M 8M>.fct
 
 #######################
 
@@ -460,6 +472,8 @@ fig.savefig(plots_dir+'fct-shortBurst4'+'.png')
 #######################
 
 # BURSTSIZE VS FCT - LONG FLOWS
+
+# require result-<alg>-0.8-4-<reqsize: 1M 2M 4M 8M>.fct
 
 #######################
 
@@ -518,11 +532,13 @@ fig.savefig(plots_dir+'fct-longBurst4'+'.png')
 
 # CDF BUFFER 0.8 LOAD
 
+# require result-<alg>-0.8-0-0.buf
+
 #######################
 
 algs=list(["powerDelay","timely","patchedTimely","swift","rttqcn"])
 alg="powerInt"
-load="0.9"
+load="0.8" # don't know why it is 0.9 in the original code
 query="2000000"
 req="8"
 
@@ -556,6 +572,8 @@ fig.savefig(plots_dir+'buf-load'+'.png')
 #######################
 
 # CDF BUFFER 2MB BURST, 16 Rate
+
+# require result-<alg>-0.8-16-2M.buf
 
 #######################
 

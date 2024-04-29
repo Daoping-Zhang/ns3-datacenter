@@ -42,6 +42,8 @@ cdf="$NS3/examples/PowerTCP/websearch.txt"
 
 # Varying Load. No Incast traffic.
 
+# Generates evaluation-<algorithm>-<loads: 0.2 0.4 0.6 0.8 0.9 0.95>-0-0.out
+
 ################################################
 req=0
 query=0
@@ -92,6 +94,8 @@ echo "#######################################"
 ################################################
 
 # 0.8 Load. Incast traffic @2MB Size, varying request rate (frequency of incast scenarios)
+
+# Generates evaluation-<algorithm>-0.8-<req: 1 4 8 16>-2M.out
 
 ################################################
 
@@ -145,6 +149,8 @@ echo "#######################################"
 ################################################
 
 # 0.8 Load. Incast traffic @ 4/second Rate, varying request size (total bytes requested in an incast scenario)
+
+# Generates evaluation-<algorithm>-0.8-4-<reqSize: 1M 2M 4M 6M 8M 10M>.out
 
 ################################################
 
