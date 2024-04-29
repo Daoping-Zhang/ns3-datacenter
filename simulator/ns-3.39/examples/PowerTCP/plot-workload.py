@@ -90,8 +90,6 @@ REQ_SIZE=list(["1000000", "2000000", "4000000", "6000000", "8000000"])
 
 req="0"
 query="0"
-# algs=list(["dcqcn", "powerInt", "hpcc", "powerDelay", "timely"])
-algs = list(["powerDelay","timely","patchedTimely","swift","rttqcn"])
 load="0.8"
 plt.rcParams.update({'font.size': 18})
 
@@ -192,7 +190,6 @@ figlegend.savefig(plots_dir+'all-legend.pdf')
 plt.rcParams.update({'font.size': 20})
 
 # algs=list([ "powerInt", "hpcc", "powerDelay"])
-algs = list(["powerDelay","timely","patchedTimely","swift","rttqcn"])
 
 req="0"
 query="0"
@@ -250,7 +247,6 @@ fig.savefig(plots_dir+'fct-shortLoad'+'.png')
 #######################
 
 # algs=list([ "powerInt", "hpcc", "powerDelay"])
-algs = list(["powerDelay","timely","patchedTimely","swift","rttqcn"])
 
 req="0"
 query="0"
@@ -309,7 +305,6 @@ fig.savefig(plots_dir+'fct-longLoad'+'.png')
 
 #######################
 
-algs=list(["powerDelay","timely","patchedTimely","swift","rttqcn"])
 
 req="0"
 query="2000000"
@@ -364,7 +359,6 @@ fig.savefig(plots_dir+'fct-shortRate'+'.png')
 
 #######################
 
-algs=list(["powerDelay","timely","patchedTimely","swift","rttqcn"])
 
 req="0"
 query="2000000"
@@ -419,7 +413,6 @@ fig.savefig(plots_dir+'fct-longRate'+'.png')
 
 #######################
 
-algs=list(["powerDelay","timely","patchedTimely","swift","rttqcn"])
 
 req="4"
 query="0"
@@ -477,7 +470,6 @@ fig.savefig(plots_dir+'fct-shortBurst4'+'.png')
 
 #######################
 
-algs=list(["powerDelay","timely","patchedTimely","swift","rttqcn"])
 
 req="4"
 query="0"
@@ -536,7 +528,6 @@ fig.savefig(plots_dir+'fct-longBurst4'+'.png')
 
 #######################
 
-algs=list(["powerDelay","timely","patchedTimely","swift","rttqcn"])
 alg="powerInt"
 load="0.8" # don't know why it is 0.9 in the original code
 query="2000000"
@@ -577,7 +568,6 @@ fig.savefig(plots_dir+'buf-load'+'.png')
 
 #######################
 
-algs=list(["powerDelay","timely","patchedTimely","swift","rttqcn"])
 alg="powerInt"
 load="0.8"
 query="2000000"
