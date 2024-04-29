@@ -479,7 +479,7 @@ fig.savefig(plots_dir+'fct-shortBurst4'+'.png')
 
 algs=list(["powerDelay","timely","patchedTimely","swift","rttqcn"])
 
-req="1"
+req="4"
 query="0"
 loads=list(["0.2","0.4","0.6","0.8","0.9","0.95"])
 
