@@ -287,6 +287,16 @@ RdmaHw::GetTypeId(void)
                           "Multiplicative decrease when cwnd < mss",
                           DoubleValue(0.25),
                           MakeDoubleAccessor(&RdmaHw::rtt_qcn_beta),
+                          MakeDoubleChecker<double>())
+            .AddAttribute("PowerQcnGradMin",
+                          "Minimum gradient of PowerQCN",
+                          DoubleValue(-0.2),
+                          MakeDoubleAccessor(&RdmaHw::powerqcn_grad_min),
+                          MakeDoubleChecker<double>())
+            .AddAttribute("PowerQcnGradMax",
+                          "Maximum gradient of PowerQCN",
+                          DoubleValue(0.6),
+                          MakeDoubleAccessor(&RdmaHw::powerqcn_grad_max),
                           MakeDoubleChecker<double>());
     return tid;
 }
@@ -2222,16 +2232,17 @@ RdmaHw::HandleAckPowerQcn(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch
     }
 
     bool gradient_ecn = false;
-    if (rtt_gradient <= 0.25)
+    if (rtt_gradient <= powerqcn_grad_min)
     {
         gradient_ecn = false;
     }
-    // else if (rtt_gradient <= 0.25)
-    // {
-    //     auto thresh = (rtt_gradient + 0.25) * 1000.0 / 0.5;
-    //     auto rand_num = distr(gen);
-    //     gradient_ecn = rand_num < thresh;
-    // }
+    else if (rtt_gradient <= powerqcn_grad_max)
+    {
+        auto thresh =
+            (rtt_gradient - powerqcn_grad_min) * 1000.0 / (powerqcn_grad_max - powerqcn_grad_min);
+        auto rand_num = distr(gen);
+        gradient_ecn = rand_num < thresh;
+    }
     else
     {
         gradient_ecn = true;

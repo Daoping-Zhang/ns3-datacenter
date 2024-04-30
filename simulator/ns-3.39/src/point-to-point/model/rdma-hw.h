@@ -239,6 +239,7 @@ class RdmaHw : public Object
      * PowerQCN
      * Improve RTT-QCN by using gradient alongside RTT
      ********************/
+    double powerqcn_grad_min, powerqcn_grad_max; // similar to rtt_qcn_tmin, rtt_qcn_tmax
     void HandleAckPowerQcn(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch);
 };
 
