@@ -22,7 +22,9 @@ os.makedirs(plots_dir,exist_ok=True)
 plt.rcParams.update({'font.size': 18,'font.family':'Source Han Sans'})
 
 
-algs=list(["powerDelay", "timely","patchedTimely","swift","rttqcn","powerqcn"])
+#algs=list(["powerDelay", "timely","patchedTimely","swift","rttqcn","powerqcn", "ufcc", "dcqcn"])
+algs=list(["ufcc"])
+
 algnames={"dcqcn":"DCQCN","powerInt":"PowerTCP","hpcc":"HPCC","powerDelay":"θ-PowerTCP","timely":"TIMELY","DCTCP":"DCTCP","patchedTimely":"Patched TIMELY","swift":"Swift","rttqcn":"RTT-QCN","powerqcn":"PowerQCN"}
 
 

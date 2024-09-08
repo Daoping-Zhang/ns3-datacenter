@@ -23,8 +23,10 @@ plt.rcParams.update({'font.size': 18,'font.family':'Source Han Sans'})
 
 
 
-algs=list(["powerDelay", "timely","patchedTimely","swift","rttqcn","powerqcn"])
-algnames={"dcqcn":"DCQCN","powerInt":"PowerTCP","hpcc":"HPCC","powerDelay":"θ-PowerTCP","timely":"TIMELY","DCTCP":"DCTCP","patchedTimely":"Patched TIMELY","swift":"Swift","rttqcn":"RTT-QCN","powerqcn":"PowerQCN"}
+#algs=list(["powerDelay", "timely","patchedTimely","swift","rttqcn","powerqcn"])
+algs=list(["dcqcn", "hpcc","timely","swift","ufcc"])
+
+algnames={"dcqcn":"DCQCN","powerInt":"PowerTCP","hpcc":"HPCC","powerDelay":"θ-PowerTCP","timely":"TIMELY","DCTCP":"DCTCP","patchedTimely":"Patched TIMELY","swift":"Swift","rttqcn":"RTT-QCN","powerqcn":"PowerQCN","ufcc":"UFCC"}
 
 #%%
 
@@ -55,6 +57,8 @@ markers["DCTCP"]="."
 markers["patchedTimely"]="v"
 markers["swift"]=">"
 markers["rttqcn"]="<"
+markers["ufcc"]="D"
+
 
 colors={}
 colors["dcqcn"]='brown'
@@ -66,6 +70,8 @@ colors["DCTCP"]='black'
 colors["patchedTimely"]="purple"
 colors["swift"]="orange"
 colors["rttqcn"]="magenta"
+colors["ufcc"]="yellow"
+
 
 
 
@@ -216,7 +222,9 @@ for alg in algs:
         for i in range(len(df1["fct"])):
             short.append(df1["fct"][i]/df1["base"][i])
         short.sort()
-        fcts99.append(short[int(len(short)*0.999)])
+        if len(short) > 0:
+            index = min(int(len(short) * 0.999), len(short) - 1)  # 确保索引不超出范围
+            fcts99.append(short[index])
 
     ax.plot(loadInt,fcts99,label=algnames[alg],marker=markers[alg],lw=2,markersize=10,c=colors[alg])
     fctsall[alg]=fcts99

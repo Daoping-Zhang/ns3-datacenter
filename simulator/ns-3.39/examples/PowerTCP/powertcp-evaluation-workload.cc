@@ -1315,6 +1315,7 @@ main(int argc, char* argv[])
     switch (cc_mode)
     {
     case CC_MODE::TIMELY:
+    case CC_MODE::UFCC:
     case CC_MODE::PATCHED_TIMELY:
     case CC_MODE::RTT_QCN:
     case CC_MODE::POWERQCN:
@@ -1858,7 +1859,7 @@ main(int argc, char* argv[])
     topof.close();
     tracef.close();
     double delay = 1.5 * minRtt * 1e-9; // 10 micro seconds
-    Simulator::Schedule(Seconds(delay), printBuffer, torNodes, delay);
+    //Simulator::Schedule(Seconds(delay), printBuffer, torNodes, delay);
 
     Ipv4GlobalRoutingHelper::PopulateRoutingTables();
     std::cout << "Running Simulation.\n";

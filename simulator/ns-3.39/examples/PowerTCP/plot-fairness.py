@@ -23,7 +23,9 @@ plt.rcParams.update({'font.size': 18,'font.family':'Source Han Sans'})
 
 
 
-algs=list(["powerDelay", "timely","patchedTimely","swift","rttqcn","powerqcn"])
+#algs=list(["powerDelay", "timely","patchedTimely","swift","rttqcn","powerqcn"])
+algs=list(["ufcc"])
+
 algnames={"dcqcn":"DCQCN","powerInt":"PowerTCP","hpcc":"HPCC","powerDelay":"θ-PowerTCP","timely":"TIMELY","DCTCP":"DCTCP","patchedTimely":"Patched TIMELY","swift":"Swift","rttqcn":"RTT-QCN","powerqcn":"PowerQCN"}
 
 

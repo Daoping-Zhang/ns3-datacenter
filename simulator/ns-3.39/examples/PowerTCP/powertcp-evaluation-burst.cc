@@ -1071,6 +1071,7 @@ main(int argc, char* argv[])
     switch (cc_mode)
     {
     case CC_MODE::TIMELY:
+    case CC_MODE::UFCC:
     case CC_MODE::PATCHED_TIMELY:
     case CC_MODE::RTT_QCN:
     case CC_MODE::POWERQCN:
