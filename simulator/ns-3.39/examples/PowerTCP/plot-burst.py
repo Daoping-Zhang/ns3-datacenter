@@ -22,9 +22,7 @@ os.makedirs(plots_dir,exist_ok=True)
 plt.rcParams.update({'font.size': 18,'font.family':'Source Han Sans'})
 
 
-#algs=list(["powerDelay", "timely","patchedTimely","swift","rttqcn","powerqcn", "ufcc", "dcqcn"])
-algs=list(["ufcc"])
-
+algs=list([ "ufcc"])
 algnames={"dcqcn":"DCQCN","powerInt":"PowerTCP","hpcc":"HPCC","powerDelay":"θ-PowerTCP","timely":"TIMELY","DCTCP":"DCTCP","patchedTimely":"Patched TIMELY","swift":"Swift","rttqcn":"RTT-QCN","powerqcn":"PowerQCN"}
 
 
@@ -106,7 +104,7 @@ for alg in algs:
     fig1.tight_layout()
     fig1.savefig(plots_dir+alg+'-power.pdf')
     fig1.savefig(plots_dir+alg+'-power.png')
-    print("Saved plot for",alg,"with avg throughput",avg_th,"avg qlen",avg_qlen,"reaches min qlen",min_qlen,"at time",min_qlen_time)
+    #print("Saved plot for",alg,"with avg throughput",avg_th,"avg qlen",avg_qlen,"reaches min qlen",min_qlen,"at time",min_qlen_time)
 
 figlegend.tight_layout()
 figlegend.legend(handles=lenged_elements,loc=9,ncol=2, framealpha=0,fontsize=48)
