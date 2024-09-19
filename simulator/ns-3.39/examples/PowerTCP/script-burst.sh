@@ -6,7 +6,7 @@ MIX_DUMP=$NS3/examples/PowerTCP/mix
 mkdir $RES_DUMP
 mkdir $MIX_DUMP
 
-algs=(2)
+algs=(10)
 
 algNames=("dcqcn" "powerInt" "hpcc" "powerDelay" "timely" "dctcp" "patchedTimely" "swift" "rttqcn" "powerqcn" "ufcc")
 CCMODE=(1 3 3 3 7 8 11 12 13 14 15)
@@ -77,7 +77,7 @@ for algorithm in ${algs[@]};do
 	N=$(( $N+1 ))
 	RESULT_FILE="$RES_DUMP/evaluation-${algNames[$algorithm]}.out"
 	# echo "time ./waf --run "evaluation-fairness --algorithm=${CCMODE[$algorithm]} --wien=$wien --delayWien=$delay --windowCheck=$window""
-	time ./waf --run "powertcp-evaluation-burst --conf=$configFile --algorithm=${CCMODE[$algorithm]} --wien=$wien --delayWien=$delay --windowCheck=$window" 
+	time ./waf --run "powertcp-evaluation-burst --conf=$configFile --algorithm=${CCMODE[$algorithm]} --wien=$wien --delayWien=$delay --windowCheck=$window" > $RESULT_FILE  2> $RESULT_FILE &
 done
 
 
