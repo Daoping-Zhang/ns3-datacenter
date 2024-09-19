@@ -175,6 +175,13 @@ class RdmaHw : public Object
     void UpdateRateTimely(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, bool us) const;
     void FastReactTimely(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch);
 
+    /**********************
+     * UFCC
+     *********************/
+
+    void HandleAckUfcc(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch);
+    void UpdateRateUfcc(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, bool us) const;
+
     /*********************
      * Patched TIMELY
      * Use alpha, Tlow, Thigh from TIMELY
@@ -256,7 +263,9 @@ enum CC_MODE
     SWIFT = 12,
     RTT_QCN = 13,
     POWERQCN = 14,
+    UFCC = 15,
 };
+
 
 } /* namespace ns3 */
 

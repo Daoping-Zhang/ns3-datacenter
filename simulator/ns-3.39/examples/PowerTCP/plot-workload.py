@@ -24,7 +24,7 @@ plt.rcParams.update({'font.size': 18,'font.family':'Source Han Sans'})
 
 
 #algs=list(["powerDelay", "timely","patchedTimely","swift","rttqcn","powerqcn"])
-algs=list(["dcqcn", "hpcc","timely","swift","ufcc"])
+algs=list(["hpcc","timely","swift","ufcc"])
 
 algnames={"dcqcn":"DCQCN","powerInt":"PowerTCP","hpcc":"HPCC","powerDelay":"θ-PowerTCP","timely":"TIMELY","DCTCP":"DCTCP","patchedTimely":"Patched TIMELY","swift":"Swift","rttqcn":"RTT-QCN","powerqcn":"PowerQCN","ufcc":"UFCC"}
 
@@ -115,7 +115,7 @@ for load in ["0.2","0.6"]:
     ax.set_ylabel("99.9 百分位流完成时间减缓倍数")
     ax.set_xlabel("流大小（以字节计）")
     ax.set_yscale('log')
-    ax.set_ylim(1,20)
+    ax.set_ylim(1,500)
     ax.set_xticks(fS)
     ax.set_xticklabels(flowSteps,rotation=30)
     ax.set_yticks([1,10])

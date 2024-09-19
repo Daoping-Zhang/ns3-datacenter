@@ -441,7 +441,21 @@ RdmaHw::AddQueuePair(uint64_t size,
         break;
     case CC_MODE::SWIFT:
         qp->swift.m_curRate = m_bps;
+    case CC_MODE::UFCC:
+        qp->ufcc.high_rate = m_bps;
+        qp->ufcc.low_rate = m_minRate;
+        qp->ufcc.high = false;
+        qp->ufcc.low = false;
+        qp->ufcc.lastRtt = 0;
+        qp->ufcc.up = false;
+        qp->ufcc.cur_times = 0;
+        qp->ufcc.max_times = 4000;
+        qp->ufcc.m_lastUpdateSeq = 0;
+        qp->ufcc.de_tarRate = 0;
+        qp->ufcc.state = qp->INIT;
+        qp->ufcc.state_count = 0;
     }
+
 
     // Notify Nic
     m_nic[nic_idx].dev->NewQp(qp);
@@ -686,6 +700,10 @@ RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader& ch)
     case CC_MODE::TIMELY:
         HandleAckTimely(qp, p, ch);
         break;
+    case CC_MODE::UFCC:
+        HandleAckUfcc(qp, p, ch);
+
+        break;
     case CC_MODE::DCTCP:
         HandleAckDctcp(qp, p, ch);
         break;
@@ -716,6 +734,8 @@ RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader& ch)
 int
 RdmaHw::Receive(Ptr<Packet> p, CustomHeader& ch)
 {
+
+
     if (ch.l3Prot == 0x11)
     { // UDP
         ReceiveUdp(p, ch);
@@ -733,6 +753,8 @@ RdmaHw::Receive(Ptr<Packet> p, CustomHeader& ch)
         ReceiveAck(p, ch);
     }
     return 0;
+
+
 }
 
 int
@@ -1792,6 +1814,222 @@ RdmaHw::FastReactTimely(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
 {
 }
 
+
+/**********************
+ * UFCC
+ *********************/
+void
+RdmaHw::HandleAckUfcc(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
+{
+    uint32_t ack_seq = ch.ack.seq;
+    // update rate
+    //printf("%lu node:%u ack_num: %lu last_ack_num: %lu\n" ,Simulator::Now().GetTimeStep(),m_node->GetId(), ack_seq, qp->ufcc.m_lastUpdateSeq);
+    if (ack_seq > qp->ufcc.m_lastUpdateSeq )
+    { // if full RTT feedback is ready, do full update
+
+        UpdateRateUfcc(qp, p, ch, false);
+
+
+    }
+    else if(ack_seq <= qp->ufcc.m_lastUpdateSeq && qp->ufcc.state == qp->INIT)
+    { // do fast react
+    
+        uint64_t rtt = Simulator::Now().GetTimeStep() - ch.ack.ih.ts;
+        int64_t new_rtt_diff = (int64_t)rtt - (int64_t)qp->ufcc.lastRtt;
+
+        qp->ufcc.lastRtt = rtt;
+
+        double rtt_diff = (1 - m_tmly_alpha) * qp->ufcc.rttDiff + m_tmly_alpha * new_rtt_diff;    
+        if(rtt_diff-1 < 0)
+        {
+            qp->ufcc.high = false;
+            qp->m_rate = qp->m_rate + qp->ufcc.up_rate;
+        }else
+        {
+            qp->ufcc.low = false;
+            qp->m_rate = qp->m_rate - qp->ufcc.down_rate;
+        }
+    }
+}
+
+void
+RdmaHw::UpdateRateUfcc(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, bool us) const
+{
+    
+
+    uint64_t rtt = Simulator::Now().GetTimeStep() - ch.ack.ih.ts;
+
+    if(qp->ufcc.lastRtt == 0)
+    {
+        qp->ufcc.minRtt = std::min(rtt,m_tmly_TLow);
+        qp->ufcc.lastRtt = rtt;
+        return;
+    }
+
+    qp->ufcc.minRtt = std::min(rtt,qp->ufcc.minRtt);
+
+
+    if (qp->ufcc.lastRtt != 0)
+    { // not first RTT
+        int64_t new_rtt_diff = (int64_t)rtt - (int64_t)qp->ufcc.lastRtt;
+
+        qp->ufcc.lastRtt = rtt;
+
+        double rtt_diff = (1 - m_tmly_alpha) * qp->ufcc.rttDiff + m_tmly_alpha * new_rtt_diff;
+        double gradient = rtt_diff / m_tmly_minRtt;
+
+        //printf("%lu node:%u rtt_diff:%f rate:%lu tar_rate:%lu Rtt:%lu\n",Simulator::Now().GetTimeStep(),m_node->GetId(), rtt_diff , qp->m_rate.GetBitRate(),qp->ufcc.m_tarRate.GetBitRate(), rtt);
+
+
+
+
+        if(qp->ufcc.state == qp->INIT)
+        {
+            if(qp->ufcc.low )
+            {
+                qp->ufcc.low_rate = qp->ufcc.last_rate;
+            }
+            if(qp->ufcc.high)
+            {
+                qp->ufcc.high_rate = qp->ufcc.last_rate;
+            }
+            qp->ufcc.low = true;
+            qp->ufcc.high = true;
+
+            qp->ufcc.up_rate =0.5* (qp->ufcc.high_rate - qp->m_rate)/(qp->snd_nxt - qp->ufcc.m_lastUpdateSeq);
+            qp->ufcc.down_rate =0.5* (qp->m_rate - qp->ufcc.low_rate)/(qp->snd_nxt - qp->ufcc.m_lastUpdateSeq);
+
+            if(qp->ufcc.low_rate + 0.01*qp->m_max_rate >= qp->ufcc.high_rate)
+            {
+                qp->ufcc.state_count = 0;
+                qp->ufcc.state = qp->STEADY;
+                
+            }
+
+
+        }else if (qp->ufcc.state == qp->STEADY)
+        {
+            qp->ufcc.state_count++;
+            if(qp->ufcc.state_count > 20)
+            {
+                qp->ufcc.state_count = 0;
+                qp->ufcc.state = qp->PREEMPT;
+            }
+
+            if( rtt_diff-1 <= 0 && rtt <= 1.3* qp->ufcc.minRtt)
+            {               
+                qp->ufcc.de_tarRate = 0;
+                
+                
+            }else
+            {
+                if(qp->m_rate < qp->ufcc.low_rate)
+                {
+                    qp->ufcc.de_tarRate++;
+                }else
+                
+                if(qp->ufcc.de_tarRate = 5)
+                {
+                    qp->ufcc.low_rate = qp->ufcc.low_rate > 10*m_minRate ? qp->ufcc.low_rate - 10*m_minRate : m_minRate;
+                }
+            }
+
+            if (rtt < 1.3*qp->ufcc.minRtt)
+            {
+
+                qp->m_rate = std::min(qp->ufcc.low_rate + 3*m_rhai, qp->m_rate + m_rhai);
+                qp->m_rate = std::min(qp->m_max_rate,qp->m_rate);
+
+            }else if (1.7*qp->ufcc.minRtt > rtt > 1.3*qp->ufcc.minRtt)
+            {
+                qp->m_rate = std::max(qp->ufcc.low_rate - 3*m_rhai, qp->m_rate - m_rhai);
+                qp->m_rate = std::max(qp->m_rate,m_minRate);
+            }else
+            {
+                qp->ufcc.state_count = 0;
+                qp->ufcc.low_rate = 0.85* qp->ufcc.low_rate;
+                qp->ufcc.state = qp->BURST;
+            }
+
+
+
+
+        }else if (qp->ufcc.state == qp->RELEASE)
+        {
+            /* code */
+        }else if (qp->ufcc.state == qp->PREEMPT)
+        {
+            /* code */
+            qp->ufcc.state_count++;
+            if(qp->ufcc.state_count >= 10)
+            {
+                qp->ufcc.state_count = 0;
+                qp->m_rate = qp->ufcc.low_rate;
+                qp->ufcc.state = qp->STEADY;
+
+            }
+
+            if(rtt < 1.3*qp->ufcc.minRtt)
+            {
+                if(rtt_diff - 1 < 0)
+                {
+                    qp->ufcc.low_rate = qp->m_rate;
+                }
+                qp->m_rate = std::min(qp->m_max_rate,qp->m_rate + 0.05 * qp->m_max_rate);
+            }else
+            {
+                qp->m_rate =  (qp->ufcc.low_rate + qp->m_rate)/2;
+            }
+
+
+
+        }else if (qp->ufcc.state == qp->BURST)
+        {
+            if(rtt > 1.5*qp->ufcc.minRtt)
+            {
+                qp->m_rate = qp->ufcc.low_rate;
+                qp->ufcc.state_count++;
+                if(qp->ufcc.state_count > 20)
+                {
+                    qp->ufcc.low_rate = qp->ufcc.low_rate*0.9;
+                }
+            }else if(rtt < 1.3*qp->ufcc.minRtt)
+            {
+                if(rtt_diff-1 <= 0 )
+                {
+                    qp->ufcc.low_rate = (qp->ufcc.low_rate + qp->m_rate)/2;
+                    qp->m_rate = std::min(qp->ufcc.high_rate,qp->m_rate+0.05*qp->m_max_rate);
+                }else{
+                    qp->m_rate = (qp->m_rate + qp->ufcc.low_rate)/2;
+                }
+
+                qp->ufcc.state_count++;
+                if(qp->ufcc.state_count>=15)
+                {
+                    qp->ufcc.state_count = 0;
+                    qp->m_rate = qp->ufcc.low_rate;
+                    qp->ufcc.state = qp->INIT;
+                }
+
+            }
+        }
+        
+        qp->ufcc.m_lastUpdateSeq = qp->snd_nxt;
+
+        printf("%lu node:%u STATE:%u qp->ufcc.state_count:%u rtt_diff:%f rate:%lu tar_rate:%lu Rtt:%lu\n",Simulator::Now().GetTimeStep(),m_node->GetId(), qp->ufcc.state,qp->ufcc.state_count,  rtt_diff , qp->m_rate.GetBitRate(),qp->ufcc.m_tarRate.GetBitRate(), rtt);
+        
+    }
+
+        
+        
+    
+
+
+    
+}
+
+
+
 /**********************
  * Patched TIMELY
  *********************/
@@ -1941,357 +2179,4 @@ RdmaHw::HandleAckDctcp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch) c
     }
 
     // check cwr exit
-    if (qp->dctcp.m_caState == 1)
-    {
-        if (ack_seq > qp->dctcp.m_highSeq)
-        {
-            qp->dctcp.m_caState = 0;
-        }
-    }
-
-    // check if need to reduce rate: ECN and not in CWR
-    if (cnp && qp->dctcp.m_caState == 0)
-    {
-#if PRINT_LOG
-        printf("%lu %s %08x %08x %u %u %.3lf->",
-               Simulator::Now().GetTimeStep(),
-               "rate",
-               qp->sip.Get(),
-               qp->dip.Get(),
-               qp->sport,
-               qp->dport,
-               qp->m_rate.GetBitRate() * 1e-9);
-#endif
-        qp->m_rate = std::max(m_minRate, qp->m_rate * (1 - qp->dctcp.m_alpha / 2));
-#if PRINT_LOG
-        printf("%.3lf\n", qp->m_rate.GetBitRate() * 1e-9);
-#endif
-        qp->dctcp.m_caState = 1;
-        qp->dctcp.m_highSeq = qp->snd_nxt;
-    }
-
-    // additive inc
-    if (qp->dctcp.m_caState == 0 && new_batch)
-    {
-        qp->m_rate = std::min(qp->m_max_rate, qp->m_rate + m_dctcp_rai);
-    }
-}
-
-/*********************
- * HPCC-PINT
- ********************/
-void
-RdmaHw::SetPintSmplThresh(double p)
-{
-    pint_smpl_thresh = (uint32_t)(65536 * p);
-}
-
-void
-RdmaHw::HandleAckHpPint(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
-{
-    uint32_t ack_seq = ch.ack.seq;
-    if (rand() % 65536 >= pint_smpl_thresh)
-    {
-        return;
-    }
-    // update rate
-    if (ack_seq > qp->hpccPint.m_lastUpdateSeq)
-    { // if full RTT feedback is ready, do full update
-        UpdateRateHpPint(qp, p, ch, false);
-    }
-    else
-    { // do fast react
-        UpdateRateHpPint(qp, p, ch, true);
-    }
-}
-
-void
-RdmaHw::UpdateRateHpPint(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, bool fast_react)
-{
-    uint32_t next_seq = qp->snd_nxt;
-    if (qp->hpccPint.m_lastUpdateSeq == 0)
-    { // first RTT
-        qp->hpccPint.m_lastUpdateSeq = next_seq;
-    }
-    else
-    {
-        // check packet INT
-        IntHeader& ih = ch.ack.ih;
-        double U = Pint::decode_u(ih.GetPower());
-
-        DataRate new_rate;
-        int32_t new_incStage;
-        double max_c = U / m_targetUtil;
-
-        if (max_c >= 1 || qp->hpccPint.m_incStage >= m_miThresh)
-        {
-            new_rate = qp->hpccPint.m_curRate / max_c + m_rai;
-            new_incStage = 0;
-        }
-        else
-        {
-            new_rate = qp->hpccPint.m_curRate + m_rai;
-            new_incStage = qp->hpccPint.m_incStage + 1;
-        }
-        if (new_rate < m_minRate)
-        {
-            new_rate = m_minRate;
-        }
-        if (new_rate > qp->m_max_rate)
-        {
-            new_rate = qp->m_max_rate;
-        }
-        ChangeRate(qp, new_rate);
-        if (!fast_react)
-        {
-            qp->hpccPint.m_curRate = new_rate;
-            qp->hpccPint.m_incStage = new_incStage;
-        }
-        if (!fast_react)
-        {
-            if (next_seq > qp->hpccPint.m_lastUpdateSeq)
-            {
-                qp->hpccPint.m_lastUpdateSeq = next_seq; //+ rand() % 2 * m_mtu;
-            }
-        }
-    }
-}
-
-/*********************
- * Swift
- ********************/
-
-void
-RdmaHw::HandleAckSwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch) const
-{
-    auto ih = ch.ack.ih.swift;
-    // std::cout << "[SWIFT] Hops: " << ih.nhop << ", Remote Delay: " << ih.remote_delay <<
-    // std::endl;
-    // uint32_t ack_seq = ch.ack.seq;
-    auto rtt = Simulator::Now().GetNanoSeconds() - ih.ts;
-    auto fabric_delay = rtt - ih.remote_delay;
-
-    // on receiving ack
-    qp->swift.m_retransmit_cnt = 0;
-    auto target_fab_delay = TargetFabDelaySwift(qp, p, ch);
-    auto fab_cwnd = GetCwndSwift(qp, p, ch, target_fab_delay, fabric_delay);
-    auto endpoint_cwnd = GetCwndSwift(qp, p, ch, swift_target_endpoint_delay, ih.remote_delay);
-    // cap max and min cwnd, and get the lower one in fab and endpoint
-    auto cwnd =
-        std::max(swift_min_cwnd, std::min(swift_max_cwnd, std::min(fab_cwnd, endpoint_cwnd)));
-    if (cwnd < qp->m_win)
-    {
-        qp->swift.m_t_last_decrease = Simulator::Now();
-    }
-    if (cwnd < 1)
-    {
-        qp->swift.m_pacing_delay = rtt * 1.0 / cwnd;
-        qp->SetWin(INT_MAX); // to make sure sending is only pacing-bound, but not window-bound
-        qp->swift.m_real_win = cwnd;
-        qp->UpdatePacing();
-    }
-    else
-    {
-        qp->swift.m_pacing_delay = 0;
-        qp->SetWin((uint32_t)cwnd);
-        qp->swift.m_real_win = cwnd;
-    }
-    std::cout << "[SWIFT] node: " << m_node->GetId() << ", cwnd: " << cwnd
-              << ", delay: " << fabric_delay << std::endl;
-}
-
-// calculate target fabric delay
-uint64_t
-RdmaHw::TargetFabDelaySwift(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch) const
-{
-    double fcwnd = qp->swift.m_real_win;
-    auto num_hops = ch.ack.ih.swift.nhop;
-    auto alpha =
-        swift_fs_range / (std::pow(swift_fs_min_cwnd, -0.5) - std::pow(swift_fs_max_cwnd, -0.5));
-    auto beta = -1 * alpha / std::sqrt(swift_fs_max_cwnd);
-    auto t = swift_base_target + num_hops * swift_hop_scale +
-             std::max(0.0, std::min(swift_fs_range, alpha * std::pow(fcwnd, -0.5) + beta));
-    return t;
-}
-
-// calculate cwnd for fabric/endpoint
-double
-RdmaHw::GetCwndSwift(Ptr<RdmaQueuePair> qp,
-                     Ptr<Packet> p,
-                     CustomHeader& ch,
-                     uint64_t target_delay,
-                     uint64_t curr_delay) const
-{
-    bool canDecrease = ch.ack.ih.swift.ts > qp->swift.m_t_last_decrease.GetNanoSeconds();
-    double cwnd = qp->swift.m_real_win;
-    if (curr_delay < target_delay)
-    {
-        if (cwnd >= 1)
-        {
-            // num_acked is actually the number of packets IN EVERY ACK
-            // so that we can assure incrementing approx. swift_ai per RTT
-            cwnd = cwnd + (double)swift_ai * (m_mtu / cwnd);
-        }
-        else
-        {
-            cwnd = cwnd + swift_ai * m_mtu;
-        }
-    }
-    else if (canDecrease)
-    {
-        cwnd =
-            std::max(1 - swift_beta * (curr_delay - target_delay) / curr_delay, 1 - swift_max_mdf) *
-            cwnd;
-    }
-    return cwnd;
-}
-
-void
-RdmaHw::HandleAckRttQcn(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch) const
-{
-    uint64_t rtt = Simulator::Now().GetTimeStep() - ch.ack.ih.GetTs();
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<> distr(0, 1000);
-    bool ecn = false;
-    if (rtt <= rtt_qcn_tmin)
-    {
-        ecn = false;
-    }
-    else if (rtt <= rtt_qcn_tmax)
-    {
-        auto thresh = (rtt - rtt_qcn_tmin) * 1000.0 / (rtt_qcn_tmax - rtt_qcn_tmin);
-        auto rand_num = distr(gen);
-        ecn = rand_num < thresh;
-    }
-    else
-    {
-        ecn = true;
-    }
-
-    // window in mtu (1000), not in bytes / seq#
-    auto cwnd = qp->rttqcn.curr_win;
-    if (cwnd < m_mtu)
-    {
-        if (ecn)
-        {
-            cwnd *= 1 - rtt_qcn_beta;
-        }
-        else
-        {
-            cwnd += rtt_qcn_alpha * m_mtu;
-        }
-    }
-    else
-    {
-        if (ecn)
-        {
-            cwnd -= 0.5 * m_mtu;
-        }
-        else
-        {
-            // attempt to improve: multiply by 10
-            cwnd += m_mtu * 10.0 / cwnd;
-        }
-    }
-    std::cout << "[RTT-QCN] node: " << m_node->GetId() << ", cwnd: " << qp->rttqcn.curr_win << "->"
-              << cwnd << ", RTT: " << rtt << ", ecn: " << ecn << std::endl;
-    qp->rttqcn.curr_win = cwnd;
-    qp->m_win = (uint32_t)cwnd;
-}
-
-void
-RdmaHw::HandleAckPowerQcn(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
-{
-    uint64_t rtt = Simulator::Now().GetTimeStep() - ch.ack.ih.GetTs();
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<> distr(0, 1000);
-    uint64_t prev_rtt = qp->powerqcn.prev_rtt == 0 ? rtt : qp->powerqcn.prev_rtt;
-    if (qp->powerqcn.prev_rtt < ch.ack.ih.GetTs())
-    {
-        qp->powerqcn.prev_rtt = rtt;
-        qp->powerqcn.last_update = Simulator::Now().GetTimeStep();
-    }
-    double rtt_gradient = (rtt - prev_rtt) / rtt_qcn_tmin;
-
-    bool rtt_ecn = false;
-    if (rtt <= rtt_qcn_tmin)
-    {
-        rtt_ecn = false;
-    }
-    else if (rtt <= rtt_qcn_tmax)
-    {
-        auto thresh = (rtt - rtt_qcn_tmin) * 1000.0 / (rtt_qcn_tmax - rtt_qcn_tmin);
-        auto rand_num = distr(gen);
-        rtt_ecn = rand_num < thresh;
-    }
-    else
-    {
-        rtt_ecn = true;
-    }
-
-    bool gradient_ecn = false;
-    if (rtt_gradient <= powerqcn_grad_min)
-    {
-        gradient_ecn = false;
-    }
-    else if (rtt_gradient <= powerqcn_grad_max)
-    {
-        auto thresh =
-            (rtt_gradient - powerqcn_grad_min) * 1000.0 / (powerqcn_grad_max - powerqcn_grad_min);
-        auto rand_num = distr(gen);
-        gradient_ecn = rand_num < thresh;
-    }
-    else
-    {
-        gradient_ecn = true;
-    }
-
-    // window in mtu (1000), not in bytes / seq#
-    auto cwnd = qp->rttqcn.curr_win;
-    if (cwnd < m_mtu)
-    {
-        if (rtt_ecn)
-        {
-            cwnd *= 1 - rtt_qcn_beta;
-        }
-        else
-        {
-            cwnd += rtt_qcn_alpha * m_mtu;
-        }
-    }
-    else
-    {
-        if (rtt_ecn)
-        {
-            // cwnd -= 0.5 * m_mtu;
-            if (gradient_ecn)
-            {
-                cwnd -= 0.7 * m_mtu;
-            }
-            else
-            {
-                cwnd -= 0.5 * m_mtu;
-            }
-        }
-        if (!rtt_ecn)
-        {
-            // cwnd += m_mtu * 10.0 / cwnd;
-            if (gradient_ecn)
-            {
-                cwnd += m_mtu * 8.0 / cwnd;
-            }
-            else
-            {
-                cwnd += m_mtu * 20.0 / cwnd;
-            }
-        }
-    }
-    std::cout << "[RTT-QCN] node: " << m_node->GetId() << ", cwnd: " << qp->rttqcn.curr_win << "->"
-              << cwnd << ", RTT: " << rtt << ", ecn: " << rtt_ecn << gradient_ecn << std::endl;
-    qp->rttqcn.curr_win = cwnd;
-    qp->m_win = (uint32_t)cwnd;
-}
-
-} // namespace ns3
+    if (qp->dctcp

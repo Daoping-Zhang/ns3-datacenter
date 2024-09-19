@@ -253,7 +253,7 @@ qp_finish(FILE* fout, Ptr<RdmaQueuePair> q)
                                                       // (with header but no INT)
     uint64_t standalone_fct = base_rtt + total_bytes * 8 * 1e9 / b;
     std::cout << "FCT " << (Simulator::Now() - q->startTime).GetNanoSeconds() << " size "
-              << q->m_size << " baseFCT " << standalone_fct << std::endl;
+              << q->m_size << " baseFCT " << standalone_fct << " now " << Simulator::Now().GetNanoSeconds() << std::endl;
 
     // remove rxQp from the receiver
     Ptr<Node> dstNode = n.Get(did);
@@ -1859,7 +1859,7 @@ main(int argc, char* argv[])
     topof.close();
     tracef.close();
     double delay = 1.5 * minRtt * 1e-9; // 10 micro seconds
-    //Simulator::Schedule(Seconds(delay), printBuffer, torNodes, delay);
+    Simulator::Schedule(Seconds(delay), printBuffer, torNodes, delay);
 
     Ipv4GlobalRoutingHelper::PopulateRoutingTables();
     std::cout << "Running Simulation.\n";

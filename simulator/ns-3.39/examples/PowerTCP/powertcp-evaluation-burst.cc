@@ -265,6 +265,7 @@ qp_finish(FILE* fout, Ptr<RdmaQueuePair> q)
     fflush(fout);
 
     // remove rxQp from the receiver
+    printf("src sending using time: %lu ns *** node receive time: %lu ns  *** node: %d to node: %d \n", (Simulator::Now() - q->startTime).GetTimeStep(), Simulator::Now().GetTimeStep(),  n.Get(sid)->GetId(),n.Get(did)->GetId());
     Ptr<Node> dstNode = n.Get(did);
     Ptr<RdmaDriver> rdma = dstNode->GetObject<RdmaDriver>();
     rdma->m_rdma->DeleteRxQp(q->sip.Get(), q->m_pg, q->sport);
@@ -1536,13 +1537,15 @@ main(int argc, char* argv[])
     topof.close();
     tracef.close();
     double delay = 1.5 * minRtt * 1e-9; // 10 micro seconds
-    Simulator::Schedule(Seconds(delay), PrintResults, switchDown, 1, delay);
+    //Simulator::Schedule(Seconds(delay), PrintResults, switchDown, 1, delay);
 
     // AsciiTraceHelper ascii;
     //     qbb.EnableAsciiAll (ascii.CreateFileStream ("eval.tr"));
     std::cout << "Running Simulation.\n";
     NS_LOG_INFO("Run Simulation.");
+    printf("ok\n");
     Simulator::Stop(Seconds(simulator_stop_time));
+    printf("ok 2\n");
     Simulator::Run();
     Simulator::Destroy();
     NS_LOG_INFO("Done.");
