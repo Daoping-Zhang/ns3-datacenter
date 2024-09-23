@@ -168,6 +168,8 @@ class RdmaQueuePair : public Object
         DataRate down_rate;
         uint32_t m_incStage;
         uint64_t lastRtt;
+        uint64_t arvgRtt;
+
         uint64_t minRtt;
         uint64_t cur_times;
         uint64_t max_times;
@@ -260,4 +262,41 @@ class RdmaRxQueuePair : public Object
 
         ECNAccount()
         {
-            memset(this, 0, sizeo
+            memset(this, 0, sizeof(ECNAccount));
+        }
+    };
+
+    ECNAccount m_ecn_source;
+    uint32_t sip, dip;
+    uint16_t sport, dport;
+    uint16_t m_ipid;
+    uint32_t ReceiverNextExpectedSeq;
+    Time m_nackTimer;
+    int32_t m_milestone_rx;
+    uint32_t m_lastNACK;
+    EventId QcnTimerEvent; // if destroy this rxQp, remember to cancel this timer
+
+    static TypeId GetTypeId(void);
+    RdmaRxQueuePair();
+    uint32_t GetHash(void) const;
+};
+
+class RdmaQueuePairGroup : public Object
+{
+  public:
+    std::vector<Ptr<RdmaQueuePair>> m_qps;
+    // std::vector<Ptr<RdmaRxQueuePair> > m_rxQps;
+
+    static TypeId GetTypeId(void);
+    RdmaQueuePairGroup(void);
+    uint32_t GetN(void) const;
+    Ptr<RdmaQueuePair> Get(uint32_t idx);
+    Ptr<RdmaQueuePair> operator[](uint32_t idx);
+    void AddQp(Ptr<RdmaQueuePair> qp);
+    // void AddRxQp(Ptr<RdmaRxQueuePair> rxQp);
+    void Clear(void);
+};
+
+} // namespace ns3
+
+#endif /* RDMA_QUEUE_PAIR_H */
