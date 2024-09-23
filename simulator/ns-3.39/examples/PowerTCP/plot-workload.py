@@ -84,6 +84,7 @@ REQ_RATE=list(["1","4", "8", "16"])
 REQ_SIZE=list(["1000000", "2000000", "4000000", "6000000", "8000000"])
 
 
+
 #%%
 
 #######################
@@ -148,9 +149,11 @@ for load in ["0.2","0.6"]:
             lfct95.append(fct95)
             lfct50.append(fct50)
         ax.plot(fS,lfct99,label=algnames[alg],marker=markers[alg],lw=2,markersize=10,c=colors[alg])
-        print(lfct99[0],alg,load)
+        mean_fct = df['fct'].mean()
+        mean_base_fat = df['base'].mean()
+        #print(f"Average Flow Completion Time for {alg} under load {load}: {mean_fct} base: {mean_base_fat}")
+        print(lfct99[8],alg,load)
         fctsShort[alg][load]=lfct99[9]
-
 
     fig.tight_layout()
     fig.savefig(plots_dir+'fct-'+load+'.pdf')
@@ -183,6 +186,81 @@ figlegend.legend(handles=lenged_elements,loc=9,ncol=5, framealpha=0,fontsize=52)
 figlegend.savefig(plots_dir+'all-legend.pdf')
 
 #%%
+
+#######################
+
+# average FCT - LONG FLOWS
+
+
+#######################
+
+
+# Step 1: 计算 UFCC 算法的平均流完成时间
+ufcc_mean_fct_per_interval = None  # 用于存储 UFCC 的平均完成时间
+ufcc_alg = 'ufcc'  # UFCC 的算法标识
+
+for alg in algs:
+    df = pd.read_csv(results+'result-'+alg+'-'+load+'-'+req+'-'+query+'.fct', delimiter=' ', usecols=[1,3,5], names=["fct", "size", "base"])
+
+    mean_fct_per_interval = list()  # 用于存储每个区间的平均流完成时间
+    
+    for i in range(1, len(flowStep)):
+        df1 = df.loc[(df["size"] < flowStep[i]) & (df["size"] >= flowStep[i-1])]
+        
+        # 计算每个区间的平均流完成时间
+        if not df1.empty:
+            mean_fct = df1['fct'].mean()
+        else:
+            mean_fct = 0  # 如果没有数据，平均值设为0
+        mean_fct_per_interval.append(mean_fct)  # 将平均值添加到列表中
+        #print(f"UFCC Mean Flow Completion Time: {ufcc_mean_fct_per_interval}")
+
+    # 如果是 UFCC 算法，存储平均完成时间用于后续计算
+    if alg == ufcc_alg:
+        ufcc_mean_fct_per_interval = mean_fct_per_interval.copy()
+        #print(f"UFCC Mean Flow Completion Time: {ufcc_mean_fct_per_interval}")
+        break  # 只需要计算一次 UFCC 的数据
+
+# Step 2: 绘制其他算法与 UFCC 的比值
+plt.figure(figsize=(8, 6))
+
+for alg in algs:
+    if alg == ufcc_alg:
+        continue  # UFCC 不用再绘制，直接比较其他算法
+
+    df = pd.read_csv(results+'result-'+alg+'-'+load+'-'+req+'-'+query+'.fct', delimiter=' ', usecols=[1,3,5], names=["fct", "size", "base"])
+    
+    mean_fct_per_interval = list()  # 用于存储每个区间的平均流完成时间
+    
+    for i in range(1, len(flowStep)):
+        df1 = df.loc[(df["size"] < flowStep[i]) & (df["size"] >= flowStep[i-1])]
+        
+        # 计算每个区间的平均流完成时间
+        if not df1.empty:
+            mean_fct = df1['fct'].mean()
+        else:
+            mean_fct = 0  # 如果没有数据，平均值设为0
+        mean_fct_per_interval.append(mean_fct)
+
+    # Step 3: 计算与 UFCC 平均完成时间的比值
+    ratio_fct_per_interval = [mean_fct_per_interval[i] / ufcc_mean_fct_per_interval[i] if ufcc_mean_fct_per_interval[i] != 0 else 0 for i in range(len(mean_fct_per_interval))]
+    # 绘制比值图
+    print(ratio_fct_per_interval)
+    plt.plot(flowStep[1:], ratio_fct_per_interval, marker=markers[alg], linestyle='-', color=colors[alg], label=algnames[alg], lw=2, markersize=8)
+
+# Step 4: 设置图表的标题、标签、图例等
+plt.title(f'Flow Completion Time Ratio (Algorithm / UFCC) under load {load}')
+plt.xlabel('Flow Size (Bytes)')
+plt.ylabel('Completion Time Ratio (Relative to UFCC)')
+plt.xscale('log')  # 如果流大小跨越多个数量级，可以使用对数坐标
+plt.ylim(0.5, 2)  # 固定纵坐标区间为 0 到 50
+
+plt.grid(True)
+plt.legend()  # 添加图例
+
+# Step 5: 保存图表
+plt.tight_layout()
+plt.savefig(plots_dir + f'avg-fct-ratio-to-ufcc-{load}.png')
 
 
 #######################
@@ -386,6 +464,7 @@ load="0.8"
 
 for alg in algs:
     fcts99=list()
+    avg_fcts = list()  # 平均流完成时间
     fctsall[alg]=list()
     for req in REQ_RATE:
         df = pd.read_csv(results+'result-'+alg+'-'+load+'-'+req+'-'+query+'.fct',delimiter=' ',usecols=[1,3,5],names=["fct","size","base"])
@@ -396,8 +475,14 @@ for alg in algs:
             short.append(df1["fct"][i]/df1["base"][i])
         short.sort()
         fcts99.append(short[int(len(short)*0.999)])
+            # 计算平均流完成时间
+        avg_fct = df1["fct"].mean() / df1["base"].mean()
+        avg_fcts.append(avg_fct)
 
-    ax.plot(REQ_RATE,fcts99,label=algnames[alg],marker=markers[alg],lw=2,markersize=10,c=colors[alg])
+    #ax.plot(REQ_RATE,fcts99,label=algnames[alg],marker=markers[alg],lw=2,markersize=10,c=colors[alg])
+    # 绘制平均流完成时间曲线
+    ax.plot(REQ_RATE, avg_fcts, label=algnames[alg] + " Avg", marker=markers[alg], lw=2, markersize=10, linestyle='--', c=colors[alg])
+
     fctsall[alg]=fcts99
 
 ax.set_xlabel('请求速率')
@@ -480,7 +565,7 @@ fig.savefig(plots_dir+'fct-shortBurst4'+'.png')
 
 
 req="4"
-query="0"
+query="2000000"
 loads=list(["0.2","0.4","0.6","0.8","0.9","0.95"])
 
 loadInt=list([20,40,60,80,90,95])
@@ -500,6 +585,8 @@ load="0.8"
 for alg in algs:
     fcts99=list()
     fctsall[alg]=list()
+    avg_fcts = list()  # 平均流完成时间
+
     for query in REQ_SIZE:
         df = pd.read_csv(results+'result-'+alg+'-'+load+'-'+req+'-'+query+'.fct',delimiter=' ',usecols=[1,3,5],names=["fct","size","base"])
         df1 = df.loc[(df["size"]<maxS) & (df["size"]> maxS-minS)]
@@ -509,8 +596,14 @@ for alg in algs:
             short.append(df1["fct"][i]/df1["base"][i])
         short.sort()
         fcts99.append(short[int(len(short)*0.999)])
+                # 计算平均流完成时间
+        avg_fct = df1["fct"].mean() / df1["base"].mean()
+        avg_fcts.append(avg_fct)
 
-    ax.plot(np.arange(len(REQ_SIZE)),fcts99,label=algnames[alg],marker=markers[alg],lw=2,markersize=10,c=colors[alg])
+    # 绘制平均流完成时间曲线
+    #ax.plot(REQ_RATE, avg_fcts, label=algnames[alg] + " Avg", marker=markers[alg], lw=2, markersize=10, linestyle='--', c=colors[alg])
+
+    ax.plot(np.arange(len(REQ_SIZE)),avg_fcts,label=algnames[alg],marker=markers[alg],lw=2,markersize=10,c=colors[alg])
     fctsall[alg]=fcts99
 
 ax.set_xlabel('请求大小 (MB)')
@@ -605,3 +698,5 @@ fig.tight_layout()
 fig.savefig(plots_dir+'buf-burst-16'+'.pdf')
 fig.savefig(plots_dir+'buf-burst-16'+'.png')
 #%%
+
+
