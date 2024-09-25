@@ -5,7 +5,7 @@ RES_RESULTS=$NS3/examples/PowerTCP/results_workload
 mkdir $RES_DUMP
 mkdir $RES_RESULTS
 #algs=(3 4 6 7 8 9)
-algs=(0 2 4 7 10)
+algs=(1 2 3 4 7 10)
 
 algNames=("dcqcn" "powerInt" "hpcc" "powerDelay" "timely" "dctcp" "patchedTimely" "swift" "rttqcn" "powerqcn" "ufcc")
 CCMODE=(1 3 3 3 7 8 11 12 13 14 15)

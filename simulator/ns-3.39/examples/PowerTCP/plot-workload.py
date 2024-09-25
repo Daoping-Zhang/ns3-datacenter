@@ -24,7 +24,7 @@ plt.rcParams.update({'font.size': 18,'font.family':'Source Han Sans'})
 
 
 #algs=list(["powerDelay", "timely","patchedTimely","swift","rttqcn","powerqcn"])
-algs=list(["hpcc","timely","swift","ufcc"])
+algs=list(["powerDelay","powerInt","hpcc","timely","swift","ufcc"])
 
 algnames={"dcqcn":"DCQCN","powerInt":"PowerTCP","hpcc":"HPCC","powerDelay":"θ-PowerTCP","timely":"TIMELY","DCTCP":"DCTCP","patchedTimely":"Patched TIMELY","swift":"Swift","rttqcn":"RTT-QCN","powerqcn":"PowerQCN","ufcc":"UFCC"}
 
@@ -110,13 +110,13 @@ fctsShort={}
 for alg in algs:
     fctsShort[alg]={}
 
-for load in ["0.2","0.6"]:
+for load in ["0.2","0.6", "0.8"]:
     fig,ax = plt.subplots(1,1)
     ax.set_label("Flow size")
     ax.set_ylabel("99.9 百分位流完成时间减缓倍数")
     ax.set_xlabel("流大小（以字节计）")
-    ax.set_yscale('log')
-    ax.set_ylim(1,500)
+    ax.set_yscale('linear')
+    ax.set_ylim(1,20)
     ax.set_xticks(fS)
     ax.set_xticklabels(flowSteps,rotation=30)
     ax.set_yticks([1,10])
@@ -156,8 +156,8 @@ for load in ["0.2","0.6"]:
         fctsShort[alg][load]=lfct99[9]
 
     fig.tight_layout()
-    fig.savefig(plots_dir+'fct-'+load+'.pdf')
-    fig.savefig(plots_dir+'fct-'+load+'.png')
+    fig.savefig(plots_dir+'fct-99.9-'+load+'.pdf')
+    fig.savefig(plots_dir+'fct-99.9-'+load+'.png')
 
 
 figlegend.tight_layout()
@@ -595,7 +595,7 @@ for alg in algs:
         for i in range(len(df1["fct"])):
             short.append(df1["fct"][i]/df1["base"][i])
         short.sort()
-        fcts99.append(short[int(len(short)*0.999)])
+        fcts99.append(short[int(len(short)*0.5)])
                 # 计算平均流完成时间
         avg_fct = df1["fct"].mean() / df1["base"].mean()
         avg_fcts.append(avg_fct)
@@ -603,14 +603,14 @@ for alg in algs:
     # 绘制平均流完成时间曲线
     #ax.plot(REQ_RATE, avg_fcts, label=algnames[alg] + " Avg", marker=markers[alg], lw=2, markersize=10, linestyle='--', c=colors[alg])
 
-    ax.plot(np.arange(len(REQ_SIZE)),avg_fcts,label=algnames[alg],marker=markers[alg],lw=2,markersize=10,c=colors[alg])
+    ax.plot(np.arange(len(REQ_SIZE)),fcts99,label=algnames[alg],marker=markers[alg],lw=2,markersize=10,c=colors[alg])
     fctsall[alg]=fcts99
 
 ax.set_xlabel('请求大小 (MB)')
-ax.set_ylabel('99.9 百分位流完成时间减缓倍数')
+ax.set_ylabel('50 百分位流完成时间减缓倍数')
 fig.tight_layout()
-fig.savefig(plots_dir+'fct-longBurst4'+'.pdf')
-fig.savefig(plots_dir+'fct-longBurst4'+'.png')
+fig.savefig(plots_dir+'fct-50-longBurst4'+load+'.pdf')
+fig.savefig(plots_dir+'fct-50-longBurst4'+load+'.png')
 
 
 #%%

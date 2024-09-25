@@ -1537,7 +1537,7 @@ main(int argc, char* argv[])
     topof.close();
     tracef.close();
     double delay = 1.5 * minRtt * 1e-9; // 10 micro seconds
-    //Simulator::Schedule(Seconds(delay), PrintResults, switchDown, 1, delay);
+    Simulator::Schedule(Seconds(delay), PrintResults, switchDown, 1, delay);
 
     // AsciiTraceHelper ascii;
     //     qbb.EnableAsciiAll (ascii.CreateFileStream ("eval.tr"));

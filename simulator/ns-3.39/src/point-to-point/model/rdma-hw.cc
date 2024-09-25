@@ -1904,7 +1904,7 @@ RdmaHw::HandleAckUfcc(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
             }
 
 
-            if( rtt < qp->ufcc.minRtt + 0.5*low_rtt && qp->m_rate != qp->m_max_rate)
+            if( rtt < qp->ufcc.minRtt + 0.25*low_rtt && qp->m_rate != qp->m_max_rate)
             {
                 qp->ufcc.state_count++;
             }else
@@ -1912,7 +1912,7 @@ RdmaHw::HandleAckUfcc(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
                 qp->ufcc.state_count = 0;
             }
 
-            if(qp->ufcc.state_count >= 3)
+            if(qp->ufcc.state_count >= 1)
             {
                 qp->ufcc.high_rate = qp->m_max_rate;
 
@@ -2049,7 +2049,7 @@ RdmaHw::UpdateRateUfcc(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, b
 
 
 
-            if( rtt < qp->ufcc.minRtt + 0.5*low_rtt && qp->m_rate != qp->m_max_rate)
+            if( rtt < qp->ufcc.minRtt + 0.25*low_rtt && qp->m_rate != qp->m_max_rate)
             {
                 qp->ufcc.state_count++;
             }else
@@ -2057,7 +2057,7 @@ RdmaHw::UpdateRateUfcc(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, b
                 qp->ufcc.state_count = 0;
             }
 
-            if(qp->ufcc.state_count >= 3)
+            if(qp->ufcc.state_count >= 1)
             {
                 qp->ufcc.high_rate = qp->m_max_rate;
 
@@ -2094,7 +2094,8 @@ RdmaHw::UpdateRateUfcc(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, b
 
                 qp->ufcc.low_rate = std::max(0.9*qp->ufcc.low_rate, m_minRate);
 
-                qp->m_rate = qp->ufcc.low_rate;
+                qp->m_rate = std::min((qp->ufcc.low_rate+ qp->ufcc.high_rate)/2, 2*qp->ufcc.low_rate);
+                qp->ufcc.down_rate =1000*0.5* (qp->m_rate - qp->ufcc.low_rate)/(qp->snd_nxt - qp->ufcc.m_lastUpdateSeq);
 
                 qp->ufcc.up_rate = 1000* std::min(0.5*(qp->ufcc.high_rate - qp->m_rate),qp->ufcc.high_rate)/(qp->snd_nxt - qp->ufcc.m_lastUpdateSeq);
                 qp->ufcc.low = false;

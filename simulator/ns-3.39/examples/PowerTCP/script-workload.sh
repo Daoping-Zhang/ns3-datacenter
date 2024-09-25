@@ -8,7 +8,7 @@ mkdir $RES_DUMP
 mkdir $MIX_DUMP
 mkdir $RES_RESULTS
 # algs=(0 1 2 3 4 5 6 7 8)
-algs=(0 2 4 7 10)
+algs=(1 2 3 4 7 10)
 
 algNames=("dcqcn" "powerInt" "hpcc" "powerDelay" "timely" "dctcp" "patchedTimely" "swift" "rttqcn" "powerqcn" "ufcc")
 CCMODE=(1 3 3 3 7 8 11 12 13 14 15)
@@ -31,7 +31,7 @@ FLOWEND=9
 LOADS=(0.2 0.4 0.6 0.8 0.9 0.95)
 
 REQ_RATE=(1 4 8 16)
-REQ_SIZE=(1000000 2000000 4000000 6000000 8000000 1000000)
+REQ_SIZE=(1000000 2000000 4000000 6000000 8000000 10000000)
 # REQ_RATE=(0)
 
 N=1

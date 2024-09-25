@@ -182,7 +182,7 @@ class RdmaHw : public Object
     void HandleAckUfcc(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch);
     void UpdateRateUfcc(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, bool us) const;
     uint64_t low_rtt = 1500;
-    uint64_t high_rtt = 2000;
+    uint64_t high_rtt = 2500;
     uint64_t burst_rtt = 6000;
     
 
