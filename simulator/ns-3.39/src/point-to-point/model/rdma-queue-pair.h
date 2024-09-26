@@ -178,6 +178,10 @@ class RdmaQueuePair : public Object
         uint8_t state_count;
         double rttDiff;
         bool up;
+
+        uint32_t low_win;
+        uint32_t high_win;
+        uint32_t cur_win;
     } ufcc;
 
     struct

@@ -454,6 +454,19 @@ RdmaHw::AddQueuePair(uint64_t size,
         qp->ufcc.de_tarRate = 0;
         qp->ufcc.state = qp->INIT;
         qp->ufcc.state_count = 0;
+    case CC_MODE::UFCC_CWND:
+        qp->ufcc.high_rate = m_bps;
+        qp->ufcc.low_rate = m_minRate;
+        qp->ufcc.high = false;
+        qp->ufcc.low = false;
+        qp->ufcc.lastRtt = 0;
+        qp->ufcc.up = false;
+        qp->ufcc.cur_times = 0;
+        qp->ufcc.max_times = 4000;
+        qp->ufcc.m_lastUpdateSeq = 0;
+        qp->ufcc.de_tarRate = 0;
+        qp->ufcc.state = qp->INIT;
+        qp->ufcc.state_count = 0;
     }
 
 
@@ -702,8 +715,10 @@ RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader& ch)
         break;
     case CC_MODE::UFCC:
         HandleAckUfcc(qp, p, ch);
-
         break;
+    case CC_MODE::UFCC_CWND:
+        HandleAckUfcwnd(qp, p, ch);
+
     case CC_MODE::DCTCP:
         HandleAckDctcp(qp, p, ch);
         break;
@@ -1945,6 +1960,314 @@ RdmaHw::HandleAckUfcc(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
 
 void
 RdmaHw::UpdateRateUfcc(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, bool us) const
+{
+    
+
+
+    uint64_t rtt = Simulator::Now().GetTimeStep() - ch.ack.ih.ts;
+
+
+
+    if (qp->ufcc.lastRtt != 0)
+    { // not first RTT
+
+
+        //printf("%lu node:%u rtt_diff:%f rate:%lu tar_rate:%lu Rtt:%lu\n",Simulator::Now().GetTimeStep(),m_node->GetId(), rtt_diff , qp->m_rate.GetBitRate(),qp->ufcc.m_tarRate.GetBitRate(), rtt);
+
+
+
+
+        if(qp->ufcc.state == qp->INIT)
+        {
+            if(rtt <= qp->ufcc.lastRtt)
+            {
+                qp->ufcc.high = false;               
+                qp->m_rate = std::min(qp->m_rate + qp->ufcc.up_rate,qp->ufcc.high_rate );
+               // printf("node:%u rtt_diff: %f up rate: %lu current rate: %lu rtt: %lu last rtt: %lu\n", m_node->GetId(), qp->ufcc.down_rate, qp->m_rate, rtt, qp->ufcc.lastRtt);
+
+                
+            }else 
+            {
+                qp->ufcc.low = false;
+                qp->m_rate = std::max(qp->m_rate - qp->ufcc.down_rate ,qp->ufcc.low_rate);   
+               // printf("node:%u rtt_diff: %f down rate: %lu current rate: %lu rtt: %lu last rtt: %lu\n", m_node->GetId(), qp->ufcc.down_rate, qp->m_rate, rtt, qp->ufcc.lastRtt);
+            }
+
+            if(qp->ufcc.low )
+            {
+                qp->ufcc.low_rate = qp->ufcc.last_rate;
+            }
+            if(qp->ufcc.high)
+            {
+                qp->ufcc.high_rate = qp->ufcc.last_rate;
+            }
+
+            qp->ufcc.low = true;
+            qp->ufcc.high = true;
+
+            if(qp->ufcc.low_rate  >= 0.95*qp->ufcc.high_rate)
+            {
+                if(qp->ufcc.arvgRtt <= qp->ufcc.minRtt + 0.5*(low_rtt + high_rtt))
+            {
+                qp->ufcc.state_count = 0;
+                qp->ufcc.state = qp->STEADY;
+                }else if(qp->ufcc.arvgRtt > qp->ufcc.minRtt + high_rtt)
+                {
+
+                    qp->ufcc.state_count = qp->ufcc.state_count+3;
+                }else
+        {
+            qp->ufcc.state_count++;
+                }
+                if(qp->ufcc.state_count >= 5)
+            {
+                    qp->m_rate = std::max(qp->ufcc.low_rate - 0.1*m_minRate,m_minRate);
+                    qp->ufcc.low_rate = qp->m_rate;
+                qp->ufcc.state_count = 0;
+                }
+                
+            }
+
+
+            qp->m_rate = std::max(qp->ufcc.low_rate , qp->m_rate);
+            qp->m_rate = std::min(qp->ufcc.high_rate , qp->m_rate);
+            
+            qp->ufcc.up_rate = 1000* std::min(0.5*(qp->ufcc.high_rate - qp->m_rate),qp->ufcc.high_rate)/(qp->snd_nxt - qp->ufcc.m_lastUpdateSeq);
+            qp->ufcc.down_rate =1000*0.5* (qp->m_rate - qp->ufcc.low_rate)/(qp->snd_nxt - qp->ufcc.m_lastUpdateSeq);
+
+
+
+        }else if (qp->ufcc.state == qp->STEADY)
+        {
+            if(rtt <= qp->ufcc.arvgRtt)
+            {
+                qp->m_rate = qp->ufcc.high_rate;
+                //printf("node: %u low rate\n", m_node->GetId());
+
+            }else if(rtt > qp->ufcc.arvgRtt)
+            {
+                qp->m_rate = qp->ufcc.low_rate;
+                
+
+            }
+
+            if(qp->ufcc.arvgRtt > qp->ufcc.minRtt + high_rtt  && rtt > qp->ufcc.arvgRtt)
+            {
+                qp->m_rate = qp->ufcc.low_rate*0.95;
+
+            }
+            if (qp->ufcc.arvgRtt < qp->ufcc.minRtt + 0.7*(low_rtt + high_rtt))
+            {
+                qp->m_rate = std::min(qp->m_max_rate,qp->ufcc.high_rate*1.05);
+
+            }
+
+
+
+            if( rtt < qp->ufcc.minRtt + 0.25*low_rtt && qp->m_rate != qp->m_max_rate)
+            {
+                qp->ufcc.state_count++;
+            }else
+            {
+                qp->ufcc.state_count = 0;
+            }
+
+            if(qp->ufcc.state_count >= 1)
+            {
+                qp->ufcc.high_rate = qp->m_max_rate;
+
+                qp->m_rate = qp->ufcc.high_rate;
+                qp->ufcc.up_rate = 0;
+                qp->ufcc.down_rate = 1000*0.5* (qp->m_rate - qp->ufcc.low_rate)/(qp->snd_nxt - qp->ufcc.m_lastUpdateSeq);   
+                qp->ufcc.low = false;
+                qp->ufcc.high = false;
+                qp->ufcc.state_count = 0;
+                qp->ufcc.state = qp->INIT;
+            }
+
+
+
+        }else if (qp->ufcc.state == qp->RELEASE)
+        {
+            /* code */
+        }else if (qp->ufcc.state == qp->PREEMPT)
+        {
+
+
+
+        }else if (qp->ufcc.state == qp->BURST)
+        {
+            if(rtt <=qp->ufcc.minRtt + burst_rtt)
+            {
+                if(qp->ufcc.low_rate >= 0.8*qp->ufcc.high_rate)
+                {
+                    qp->ufcc.high_rate =  (qp->m_max_rate+qp->ufcc.high_rate)/2;
+            }else
+            {
+                    qp->ufcc.high_rate = (qp->ufcc.low_rate + qp->ufcc.high_rate)/2;
+            }
+
+                qp->ufcc.low_rate = std::max(0.9*qp->ufcc.low_rate, m_minRate);
+
+                qp->m_rate = std::min((qp->ufcc.low_rate+ qp->ufcc.high_rate)/2, 2*qp->ufcc.low_rate);
+                qp->ufcc.down_rate =1000*0.5* (qp->m_rate - qp->ufcc.low_rate)/(qp->snd_nxt - qp->ufcc.m_lastUpdateSeq);
+
+                qp->ufcc.up_rate = 1000* std::min(0.5*(qp->ufcc.high_rate - qp->m_rate),qp->ufcc.high_rate)/(qp->snd_nxt - qp->ufcc.m_lastUpdateSeq);
+                qp->ufcc.low = false;
+                qp->ufcc.high = false;
+                qp->ufcc.down_rate = 0;
+                    qp->ufcc.state_count = 0;
+                    qp->ufcc.state = qp->INIT;
+
+            }
+        }
+        
+         qp->ufcc.last_rate = qp->m_rate;  
+        //printf("%lu node:%u aveRTT: %lu STATE:%u rate:%lu rtt_diff:%f last_rtt: %lu rtt: %lu low_rate:%lu high_rate:%lu up_rate: %lu down_rate:%lu minRtt:%lu\n",Simulator::Now().GetTimeStep(),m_node->GetId(),qp->ufcc.arvgRtt, qp->ufcc.state, qp->m_rate.GetBitRate(),  rtt_diff , qp->ufcc.lastRtt, rtt,qp->ufcc.low_rate.GetBitRate(), qp->ufcc.high_rate.GetBitRate(),qp->ufcc.up_rate,qp->ufcc.down_rate,qp->ufcc.minRtt);
+        qp->ufcc.arvgRtt = 0.3*qp->ufcc.arvgRtt + 0.7*rtt;
+        qp->ufcc.m_lastUpdateSeq = qp->snd_nxt;
+        qp->ufcc.lastRtt = rtt;
+    }
+
+        
+        
+    
+
+
+    
+}
+
+
+/**********************
+ * UFCC CWND
+ *********************/
+void
+RdmaHw::HandleAckUfcwnd(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
+{
+    uint32_t ack_seq = ch.ack.seq;
+    // update rate
+    //printf("%lu node:%u ack_num: %lu last_ack_num: %lu\n" ,Simulator::Now().GetTimeStep(),m_node->GetId(), ack_seq, qp->ufcc.m_lastUpdateSeq);
+    uint64_t rtt = Simulator::Now().GetTimeStep() - ch.ack.ih.ts;
+    //qp->txBytes
+    if(qp->ufcc.lastRtt == 0)
+    {
+        qp->ufcc.arvgRtt = rtt;
+        uint64_t minRtt = m_tmly_minRtt;
+        qp->ufcc.minRtt = std::min(rtt , minRtt);
+        qp->ufcc.lastRtt = rtt;
+        qp->ufcc.m_lastUpdateSeq = qp->snd_nxt;
+        return;
+    }
+
+    qp->ufcc.minRtt = std::min(rtt,qp->ufcc.minRtt);
+    
+        
+    if(rtt>qp->ufcc.minRtt + burst_rtt)
+    {
+        qp->ufcc.state = qp->BURST;
+    }
+
+    if (ack_seq > qp->ufcc.m_lastUpdateSeq )
+    { // if full RTT feedback is ready, do full update
+
+        UpdateStateUfcwnd(qp, p, ch, false);
+
+
+    }else if(ack_seq <= qp->ufcc.m_lastUpdateSeq)
+    {
+         // do fast react
+
+
+        if(qp->ufcc.state == qp->INIT)
+        {
+   
+            if(rtt <= qp->ufcc.lastRtt)
+            {
+                qp->ufcc.high = false;
+                
+                qp->m_rate = std::min(qp->m_rate + qp->ufcc.up_rate,qp->ufcc.high_rate );
+
+                    //printf("node:%u rtt_diff: %f up rate: %lu current rate: %lu rtt: %lu last rtt: %lu\n", m_node->GetId(), qp->ufcc.down_rate, qp->m_rate, rtt, qp->ufcc.lastRtt);
+
+                    
+
+                    
+            }else
+            {
+                qp->ufcc.low = false;
+                qp->m_rate = std::max(qp->m_rate - qp->ufcc.down_rate ,qp->ufcc.low_rate);   
+                //printf("node:%u rtt_diff: %f down rate: %lu current rate: %lu rtt: %lu last rtt: %lu\n", m_node->GetId(), qp->ufcc.down_rate, qp->m_rate, rtt, qp->ufcc.lastRtt);
+
+                    //("ack:%u down rate: %lu current rate: %lu rtt: %lu last rtt: %lu\n", ack_seq, qp->ufcc.down_rate, qp->m_rate, rtt, qp->ufcc.lastRtt);
+            }
+
+            //printf("node:%u rtt_diff: %f\n", m_node->GetId(),rtt_diff-1);
+        }else if (qp->ufcc.state == qp->STEADY)
+        {
+            if(rtt <= qp->ufcc.arvgRtt)
+            {
+                qp->m_rate = qp->ufcc.high_rate;
+                //printf("node: %u low rate\n", m_node->GetId());
+
+            }else if(rtt > qp->ufcc.arvgRtt)
+            {
+                qp->m_rate = qp->ufcc.low_rate;
+              
+            }
+
+            if(qp->ufcc.arvgRtt > qp->ufcc.minRtt + high_rtt && rtt > qp->ufcc.arvgRtt)
+            {
+                qp->m_rate = qp->ufcc.low_rate*0.95;
+
+            }
+            if (qp->ufcc.arvgRtt < qp->ufcc.minRtt + 0.7*(low_rtt + high_rtt))
+            {
+                qp->m_rate = std::min(qp->m_max_rate,qp->ufcc.high_rate*1.05);
+
+            }
+
+
+            if( rtt < qp->ufcc.minRtt + 0.25*low_rtt && qp->m_rate != qp->m_max_rate)
+            {
+                qp->ufcc.state_count++;
+            }else
+            {
+                qp->ufcc.state_count = 0;
+            }
+
+            if(qp->ufcc.state_count >= 1)
+            {
+                qp->ufcc.high_rate = qp->m_max_rate;
+
+                qp->m_rate = qp->ufcc.high_rate;
+                qp->ufcc.up_rate = 0;
+                qp->ufcc.down_rate = 1000*0.5* (qp->m_rate - qp->ufcc.low_rate)/(qp->snd_nxt - qp->ufcc.m_lastUpdateSeq);   
+                qp->ufcc.low = false;
+                qp->ufcc.high = false;
+                
+                qp->ufcc.state = qp->INIT;
+                qp->ufcc.state_count = 0;
+            }
+
+        }else if (qp->ufcc.state == qp->BURST)
+        {
+            qp->m_rate = std::max(0.3*qp->ufcc.low_rate , m_minRate);
+   
+            if( rtt <= qp->ufcc.minRtt + burst_rtt)
+            {
+                qp->m_rate = std::min((0.9*qp->ufcc.low_rate+ qp->ufcc.high_rate)/2, 2*0.9*qp->ufcc.low_rate);
+               
+            }
+
+        }
+
+    }
+
+    ChangeRate(qp,qp->m_rate);
+}
+
+void
+RdmaHw::UpdateStateUfcwnd(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, bool us) const
 {
     
 

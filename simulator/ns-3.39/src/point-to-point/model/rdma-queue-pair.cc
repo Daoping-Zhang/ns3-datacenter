@@ -168,6 +168,7 @@ bool
 RdmaQueuePair::IsWinBound() const
 {
     uint64_t w = GetWin();
+    
     return w != 0 && GetOnTheFly() >= w;
 }
 
@@ -207,13 +208,17 @@ RdmaQueuePair::GetWin() const
             if (w == 0)
             {
                 w = 1; // must > 0
+                
             }
+            //printf("m_var_win get win:%u m_win:%u\n",w, m_win);
         }
         else
         {
             w = m_win;
+            //printf("!m_var_win\n");
         }
     }
+    
     return w;
 }
 

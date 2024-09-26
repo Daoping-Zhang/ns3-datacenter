@@ -180,9 +180,12 @@ class RdmaHw : public Object
      *********************/
 
     void HandleAckUfcc(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch);
+    void HandleAckUfcwnd(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch);
+    void UpdateStateUfcwnd(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, bool us) const;
+
     void UpdateRateUfcc(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, bool us) const;
-    uint64_t low_rtt = 1500;
-    uint64_t high_rtt = 2500;
+    uint64_t low_rtt = 1000;
+    uint64_t high_rtt = 1500;
     uint64_t burst_rtt = 6000;
     
 
@@ -268,6 +271,7 @@ enum CC_MODE
     RTT_QCN = 13,
     POWERQCN = 14,
     UFCC = 15,
+    UFCC_CWND = 16,
 };
 
 
