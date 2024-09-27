@@ -113,14 +113,14 @@ for alg in algs:
 for load in ["0.2","0.6", "0.8"]:
     fig,ax = plt.subplots(1,1)
     ax.set_label("Flow size")
-    ax.set_ylabel("99.9 百分位流完成时间减缓倍数")
+    ax.set_ylabel("50 百分位流完成时间减缓倍数")
     ax.set_xlabel("流大小（以字节计）")
     ax.set_yscale('linear')
-    ax.set_ylim(1,20)
+    ax.set_ylim(1,2)
     ax.set_xticks(fS)
     ax.set_xticklabels(flowSteps,rotation=30)
-    ax.set_yticks([1,10])
-    ax.set_yticklabels([1,10])
+    ax.set_yticks([1,2])
+    ax.set_yticklabels([1,2])
 
     for alg in algs:
         df = pd.read_csv(results+'result-'+alg+'-'+load+'-'+req+'-'+query+'.fct',delimiter=' ',usecols=[1,3,5],names=["fct","size","base"])
@@ -148,7 +148,7 @@ for load in ["0.2","0.6", "0.8"]:
             lfct99.append(fct99)
             lfct95.append(fct95)
             lfct50.append(fct50)
-        ax.plot(fS,lfct99,label=algnames[alg],marker=markers[alg],lw=2,markersize=10,c=colors[alg])
+        ax.plot(fS,lfct50,label=algnames[alg],marker=markers[alg],lw=2,markersize=10,c=colors[alg])
         mean_fct = df['fct'].mean()
         mean_base_fat = df['base'].mean()
         #print(f"Average Flow Completion Time for {alg} under load {load}: {mean_fct} base: {mean_base_fat}")
@@ -156,8 +156,8 @@ for load in ["0.2","0.6", "0.8"]:
         fctsShort[alg][load]=lfct99[9]
 
     fig.tight_layout()
-    fig.savefig(plots_dir+'fct-99.9-'+load+'.pdf')
-    fig.savefig(plots_dir+'fct-99.9-'+load+'.png')
+    fig.savefig(plots_dir+'fct-50-'+load+'.pdf')
+    fig.savefig(plots_dir+'fct-50-'+load+'.png')
 
 
 figlegend.tight_layout()

@@ -351,6 +351,10 @@ RdmaHw::GetNicIdxOfQp(Ptr<RdmaQueuePair> qp)
 uint64_t
 RdmaHw::GetQpKey(uint32_t dip, uint16_t sport, uint16_t pg)
 {
+    if(pg!=3)
+    {
+        pg=3;
+    }
     return ((uint64_t)dip << 32) | ((uint64_t)sport << 16) | (uint64_t)pg;
 }
 
@@ -379,6 +383,7 @@ RdmaHw::AddQueuePair(uint64_t size,
                      Time stopTime)
 {
     // create qp
+    pg = 0;
     Ptr<RdmaQueuePair> qp = CreateObject<RdmaQueuePair>(pg, sip, dip, sport, dport);
     qp->SetSize(size);
     qp->SetWin(win);
@@ -454,6 +459,9 @@ RdmaHw::AddQueuePair(uint64_t size,
         qp->ufcc.de_tarRate = 0;
         qp->ufcc.state = qp->INIT;
         qp->ufcc.state_count = 0;
+        qp->ufcc.wait_count = 0;
+        qp->ufcc.base_win = qp->m_win;
+        
     case CC_MODE::UFCC_CWND:
         qp->ufcc.high_rate = m_bps;
         qp->ufcc.low_rate = m_minRate;
@@ -490,6 +498,10 @@ RdmaHw::GetRxQp(uint32_t sip,
                 uint16_t pg,
                 bool create)
 {
+    if(pg != 3)
+    {
+        pg = 3;
+    }
     uint64_t key = ((uint64_t)dip << 32) | ((uint64_t)pg << 16) | (uint64_t)dport;
     auto it = m_rxQpMap.find(key);
     if (it != m_rxQpMap.end())
@@ -530,6 +542,10 @@ RdmaHw::GetNicIdxOfRxQp(Ptr<RdmaRxQueuePair> q)
 void
 RdmaHw::DeleteRxQp(uint32_t dip, uint16_t pg, uint16_t dport)
 {
+    if(pg != 3)
+    {
+        pg = 3;
+    }
     uint64_t key = ((uint64_t)dip << 32) | ((uint64_t)pg << 16) | (uint64_t)dport;
     m_rxQpMap.erase(key);
 }
@@ -704,6 +720,17 @@ RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader& ch)
         }
     }
 
+    if (seq >= 400000 && qp->m_pg ==0)
+    {
+        qp->m_pg = 3;
+        qp->ufcc.low_rate = m_minRate;
+        qp->ufcc.state_count = 0;
+        qp->ufcc.state = qp->INIT;
+        qp->ufcc.wait_count = 5;
+        qp->ufcc.high_rate = qp->m_max_rate;
+        qp->m_rate = qp->ufcc.high_rate;
+    }
+
     switch (m_cc_mode)
     {
     case CC_MODE::HPCC:
@@ -736,6 +763,8 @@ RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader& ch)
         break;
     case CC_MODE::POWERQCN:
         HandleAckPowerQcn(qp, p, ch);
+        break;
+    case CC_MODE::MLX_CNP:
         break;
     default:
         NS_ABORT_MSG("Unknown CC mode");
@@ -974,6 +1003,7 @@ RdmaHw::PktSent(Ptr<RdmaQueuePair> qp, Ptr<Packet> pkt, Time interframeGap) cons
     //	SeqTsHeader seqTs;
     //	pkt->PeekHeader(seqTs);
     uint32_t seq = qp->snd_nxt;
+
     qp->rates[qp->snd_nxt] = Simulator::Now().GetNanoSeconds();
     UpdateNextAvail(qp, interframeGap, pkt->GetSize());
 }
@@ -1840,11 +1870,12 @@ RdmaHw::HandleAckUfcc(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
     // update rate
     //printf("%lu node:%u ack_num: %lu last_ack_num: %lu\n" ,Simulator::Now().GetTimeStep(),m_node->GetId(), ack_seq, qp->ufcc.m_lastUpdateSeq);
     uint64_t rtt = Simulator::Now().GetTimeStep() - ch.ack.ih.ts;
+
     //qp->txBytes
     if(qp->ufcc.lastRtt == 0)
     {
         qp->ufcc.arvgRtt = rtt;
-        uint64_t minRtt = m_tmly_minRtt;
+        uint64_t minRtt = qp->m_baseRtt +72;
         qp->ufcc.minRtt = std::min(rtt , minRtt);
         qp->ufcc.lastRtt = rtt;
         qp->ufcc.m_lastUpdateSeq = qp->snd_nxt;
@@ -1857,6 +1888,7 @@ RdmaHw::HandleAckUfcc(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
     if(rtt>qp->ufcc.minRtt + burst_rtt)
     {
         qp->ufcc.state = qp->BURST;
+
     }
 
     if (ack_seq > qp->ufcc.m_lastUpdateSeq )
@@ -1912,6 +1944,7 @@ RdmaHw::HandleAckUfcc(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
                 qp->m_rate = qp->ufcc.low_rate*0.95;
 
             }
+
             if (qp->ufcc.arvgRtt < qp->ufcc.minRtt + 0.7*(low_rtt + high_rtt))
             {
                 qp->m_rate = std::min(qp->m_max_rate,qp->ufcc.high_rate*1.05);
@@ -1963,7 +1996,7 @@ RdmaHw::UpdateRateUfcc(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, b
 {
     
 
-
+    
     uint64_t rtt = Simulator::Now().GetTimeStep() - ch.ack.ih.ts;
 
 
@@ -1993,10 +2026,18 @@ RdmaHw::UpdateRateUfcc(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, b
                // printf("node:%u rtt_diff: %f down rate: %lu current rate: %lu rtt: %lu last rtt: %lu\n", m_node->GetId(), qp->ufcc.down_rate, qp->m_rate, rtt, qp->ufcc.lastRtt);
             }
 
-            if(qp->ufcc.low )
+            if(qp->ufcc.wait_count == 0)
             {
-                qp->ufcc.low_rate = qp->ufcc.last_rate;
+                if(qp->ufcc.low )
+                {
+                    qp->ufcc.low_rate = qp->ufcc.last_rate;
+                }
+            }else
+            {
+                qp->ufcc.wait_count --;
             }
+
+
             if(qp->ufcc.high)
             {
                 qp->ufcc.high_rate = qp->ufcc.last_rate;
@@ -2007,7 +2048,7 @@ RdmaHw::UpdateRateUfcc(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, b
 
             if(qp->ufcc.low_rate  >= 0.95*qp->ufcc.high_rate)
             {
-                if(qp->ufcc.arvgRtt <= qp->ufcc.minRtt + 0.5*(low_rtt + high_rtt))
+                if(qp->ufcc.arvgRtt <= qp->ufcc.minRtt +  high_rtt)
             {
                 qp->ufcc.state_count = 0;
                 qp->ufcc.state = qp->STEADY;
@@ -2123,10 +2164,12 @@ RdmaHw::UpdateRateUfcc(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, b
         }
         
          qp->ufcc.last_rate = qp->m_rate;  
-        //printf("%lu node:%u aveRTT: %lu STATE:%u rate:%lu rtt_diff:%f last_rtt: %lu rtt: %lu low_rate:%lu high_rate:%lu up_rate: %lu down_rate:%lu minRtt:%lu\n",Simulator::Now().GetTimeStep(),m_node->GetId(),qp->ufcc.arvgRtt, qp->ufcc.state, qp->m_rate.GetBitRate(),  rtt_diff , qp->ufcc.lastRtt, rtt,qp->ufcc.low_rate.GetBitRate(), qp->ufcc.high_rate.GetBitRate(),qp->ufcc.up_rate,qp->ufcc.down_rate,qp->ufcc.minRtt);
         qp->ufcc.arvgRtt = 0.3*qp->ufcc.arvgRtt + 0.7*rtt;
         qp->ufcc.m_lastUpdateSeq = qp->snd_nxt;
         qp->ufcc.lastRtt = rtt;
+        qp->SetWin(qp->ufcc.base_win * rtt/qp->m_baseRtt);
+        //printf("%lu node:%u pg:%u aveRTT: %lu STATE:%u win:%u rate:%lu last_rtt: %lu rtt: %lu low_rate:%lu high_rate:%lu up_rate: %lu down_rate:%lu minRtt:%lu\n",Simulator::Now().GetTimeStep(),m_node->GetId(),qp->m_pg,qp->ufcc.arvgRtt, qp->ufcc.state, qp->m_win  ,qp->m_rate.GetBitRate() , qp->ufcc.lastRtt, rtt,qp->ufcc.low_rate.GetBitRate(), qp->ufcc.high_rate.GetBitRate(),qp->ufcc.up_rate,qp->ufcc.down_rate,qp->ufcc.minRtt);
+
     }
 
         
@@ -2433,6 +2476,8 @@ RdmaHw::UpdateStateUfcwnd(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch
          qp->ufcc.last_rate = qp->m_rate;  
         //printf("%lu node:%u aveRTT: %lu STATE:%u rate:%lu rtt_diff:%f last_rtt: %lu rtt: %lu low_rate:%lu high_rate:%lu up_rate: %lu down_rate:%lu minRtt:%lu\n",Simulator::Now().GetTimeStep(),m_node->GetId(),qp->ufcc.arvgRtt, qp->ufcc.state, qp->m_rate.GetBitRate(),  rtt_diff , qp->ufcc.lastRtt, rtt,qp->ufcc.low_rate.GetBitRate(), qp->ufcc.high_rate.GetBitRate(),qp->ufcc.up_rate,qp->ufcc.down_rate,qp->ufcc.minRtt);
         qp->ufcc.arvgRtt = 0.3*qp->ufcc.arvgRtt + 0.7*rtt;
+        uint32_t new_win = qp->ufcc.base_win*rtt/qp->m_baseRtt;
+        qp->SetWin(new_win);
         qp->ufcc.m_lastUpdateSeq = qp->snd_nxt;
         qp->ufcc.lastRtt = rtt;
     }

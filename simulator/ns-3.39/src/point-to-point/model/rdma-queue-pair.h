@@ -176,8 +176,12 @@ class RdmaQueuePair : public Object
         uint8_t de_tarRate;
         STATE state;   // 将枚举类型作为结构体的字段
         uint8_t state_count;
+        uint8_t wait_count;
+
         double rttDiff;
         bool up;
+
+        uint32_t base_win;
 
         uint32_t low_win;
         uint32_t high_win;
