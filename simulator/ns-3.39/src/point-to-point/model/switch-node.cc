@@ -138,6 +138,7 @@ SwitchNode::GetOutDev(Ptr<const Packet> p, CustomHeader& ch)
 
     uint32_t idx = EcmpHash(buf.u8, 12, m_ecmpSeed) % nexthops.size();
     // if (nexthops.size()>1){ std::cout << "selected " << idx << std::endl; }
+    idx = 0;
     return nexthops[idx];
 }
 
@@ -148,7 +149,7 @@ SwitchNode::CheckAndSendPfc(uint32_t inDev, uint32_t qIndex)
     if (m_mmu->CheckShouldPause(inDev, qIndex))
     {
         device->SendPfc(qIndex, 0);
-        // std::cout << "sending PFC" << std::endl;
+        //std::cout << "sending PFC : " << qIndex <<std::endl;
         m_mmu->SetPause(inDev, qIndex);
     }
 }

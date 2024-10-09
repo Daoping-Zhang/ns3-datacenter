@@ -383,10 +383,10 @@ RdmaHw::AddQueuePair(uint64_t size,
                      Time stopTime)
 {
     // create qp
-    pg = 0;
+    //pg = 0;
     Ptr<RdmaQueuePair> qp = CreateObject<RdmaQueuePair>(pg, sip, dip, sport, dport);
     qp->SetSize(size);
-    qp->SetWin(win);
+    qp->SetWin(INT_MAX);
     qp->SetBaseRtt(baseRtt);
     qp->SetVarWin(m_var_win);
     qp->SetAppNotifyCallback(notifyAppFinish);
@@ -418,7 +418,7 @@ RdmaHw::AddQueuePair(uint64_t size,
     DataRate m_bps = m_nic[nic_idx].dev->GetDataRate();
     if (win)
     {
-        qp->SetWin(m_bps.GetBitRate() * 1 * baseRtt * 1e-9 / 8);
+        //qp->SetWin(m_bps.GetBitRate() * 1 * baseRtt * 1e-9 / 8);
     }
     qp->m_rate = m_bps; // transmission starts at full rate
     qp->m_max_rate = m_bps;
@@ -498,10 +498,7 @@ RdmaHw::GetRxQp(uint32_t sip,
                 uint16_t pg,
                 bool create)
 {
-    if(pg != 3)
-    {
-        pg = 3;
-    }
+    
     uint64_t key = ((uint64_t)dip << 32) | ((uint64_t)pg << 16) | (uint64_t)dport;
     auto it = m_rxQpMap.find(key);
     if (it != m_rxQpMap.end())
@@ -542,10 +539,7 @@ RdmaHw::GetNicIdxOfRxQp(Ptr<RdmaRxQueuePair> q)
 void
 RdmaHw::DeleteRxQp(uint32_t dip, uint16_t pg, uint16_t dport)
 {
-    if(pg != 3)
-    {
-        pg = 3;
-    }
+
     uint64_t key = ((uint64_t)dip << 32) | ((uint64_t)pg << 16) | (uint64_t)dport;
     m_rxQpMap.erase(key);
 }
@@ -719,7 +713,7 @@ RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader& ch)
             cnp_received_mlx(qp);
         }
     }
-
+/*
     if (seq >= 400000 && qp->m_pg ==0)
     {
         qp->m_pg = 3;
@@ -730,7 +724,7 @@ RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader& ch)
         qp->ufcc.high_rate = qp->m_max_rate;
         qp->m_rate = qp->ufcc.high_rate;
     }
-
+*/
     switch (m_cc_mode)
     {
     case CC_MODE::HPCC:
@@ -741,7 +735,13 @@ RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader& ch)
         HandleAckTimely(qp, p, ch);
         break;
     case CC_MODE::UFCC:
-        HandleAckUfcc(qp, p, ch);
+        if(true)
+        {
+            HandleAckUfcc(qp, p, ch);
+        }else {
+            HandleAckDctcp(qp, p, ch);
+        }
+        
         break;
     case CC_MODE::UFCC_CWND:
         HandleAckUfcwnd(qp, p, ch);
@@ -1960,7 +1960,7 @@ RdmaHw::HandleAckUfcc(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
                 qp->ufcc.state_count = 0;
             }
 
-            if(qp->ufcc.state_count >= 1)
+            if(qp->ufcc.state_count >= 3)
             {
                 qp->ufcc.high_rate = qp->m_max_rate;
 
@@ -1976,11 +1976,10 @@ RdmaHw::HandleAckUfcc(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
 
         }else if (qp->ufcc.state == qp->BURST)
         {
-            qp->m_rate = std::max(0.3*qp->ufcc.low_rate , m_minRate);
-   
+            qp->m_rate = std::max(0.5*qp->ufcc.low_rate , m_minRate);
             if( rtt <= qp->ufcc.minRtt + burst_rtt)
             {
-                qp->m_rate = std::min((0.9*qp->ufcc.low_rate+ qp->ufcc.high_rate)/2, 2*0.9*qp->ufcc.low_rate);
+                qp->m_rate = std::min((0.99*qp->ufcc.low_rate+ qp->ufcc.high_rate)/2, 2*0.99*qp->ufcc.low_rate);
                
             }
 
@@ -2113,7 +2112,7 @@ RdmaHw::UpdateRateUfcc(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, b
                 qp->ufcc.state_count = 0;
             }
 
-            if(qp->ufcc.state_count >= 1)
+            if(qp->ufcc.state_count >= 3)
             {
                 qp->ufcc.high_rate = qp->m_max_rate;
 
@@ -2148,7 +2147,7 @@ RdmaHw::UpdateRateUfcc(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, b
                     qp->ufcc.high_rate = (qp->ufcc.low_rate + qp->ufcc.high_rate)/2;
             }
 
-                qp->ufcc.low_rate = std::max(0.9*qp->ufcc.low_rate, m_minRate);
+                qp->ufcc.low_rate = std::max(0.99*qp->ufcc.low_rate, m_minRate);
 
                 qp->m_rate = std::min((qp->ufcc.low_rate+ qp->ufcc.high_rate)/2, 2*qp->ufcc.low_rate);
                 qp->ufcc.down_rate =1000*0.5* (qp->m_rate - qp->ufcc.low_rate)/(qp->snd_nxt - qp->ufcc.m_lastUpdateSeq);
@@ -2167,7 +2166,7 @@ RdmaHw::UpdateRateUfcc(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, b
         qp->ufcc.arvgRtt = 0.3*qp->ufcc.arvgRtt + 0.7*rtt;
         qp->ufcc.m_lastUpdateSeq = qp->snd_nxt;
         qp->ufcc.lastRtt = rtt;
-        qp->SetWin(qp->ufcc.base_win * rtt/qp->m_baseRtt);
+        //qp->SetWin(qp->ufcc.base_win * rtt/qp->m_baseRtt);
         //printf("%lu node:%u pg:%u aveRTT: %lu STATE:%u win:%u rate:%lu last_rtt: %lu rtt: %lu low_rate:%lu high_rate:%lu up_rate: %lu down_rate:%lu minRtt:%lu\n",Simulator::Now().GetTimeStep(),m_node->GetId(),qp->m_pg,qp->ufcc.arvgRtt, qp->ufcc.state, qp->m_win  ,qp->m_rate.GetBitRate() , qp->ufcc.lastRtt, rtt,qp->ufcc.low_rate.GetBitRate(), qp->ufcc.high_rate.GetBitRate(),qp->ufcc.up_rate,qp->ufcc.down_rate,qp->ufcc.minRtt);
 
     }
@@ -2294,7 +2293,7 @@ RdmaHw::HandleAckUfcwnd(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
 
         }else if (qp->ufcc.state == qp->BURST)
         {
-            qp->m_rate = std::max(0.3*qp->ufcc.low_rate , m_minRate);
+            qp->m_rate = std::max(0.1*qp->ufcc.low_rate , m_minRate);
    
             if( rtt <= qp->ufcc.minRtt + burst_rtt)
             {
@@ -2675,6 +2674,7 @@ RdmaHw::HandleAckDctcp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch) c
     {
         qp->m_rate = std::min(qp->m_max_rate, qp->m_rate + m_dctcp_rai);
     }
+    qp->m_rate = qp->m_max_rate;
 }
 
 /*********************

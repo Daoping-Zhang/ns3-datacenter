@@ -189,6 +189,7 @@ RdmaEgressQueue::GetNextQindex(bool paused[])
             uint32_t min_finish_id = 0xffffffff;
             for (qIndex = 1; qIndex <= fcount; qIndex++) // go through all queues
             {
+                //m_rrlast = 0;
                 uint32_t idx = (qIndex + m_rrlast) % fcount; // start from where we left last time
                 Ptr<RdmaQueuePair> qp = m_qpGrp->Get(idx);
 

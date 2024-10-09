@@ -120,6 +120,7 @@ namespace ns3 {
 			{
 				for (qIndex = 1; qIndex <= qCnt; qIndex++)
 				{
+					m_rrlast = 0;
 					if (!paused[(qIndex + m_rrlast) % qCnt] && m_queues[(qIndex + m_rrlast) % qCnt]->GetNPackets() > 0)  //round robin
 					{
 						found = true;

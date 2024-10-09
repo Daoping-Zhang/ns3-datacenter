@@ -127,6 +127,9 @@ std::map<uint32_t, NetDeviceContainer> switchDown;
 // NetDeviceContainer switchUp[switch_num];
 std::map<uint32_t, NetDeviceContainer> sourceNodes;
 
+int num_conter[6]={0};
+
+
 NodeContainer servers;
 NodeContainer tors;
 
@@ -238,6 +241,29 @@ ip_to_node_id(Ipv4Address ip)
     return (ip.Get() >> 8) & 0xffff;
 }
 
+int addPerturbation(int number, double perturbationRange) {
+    // 设置随机数种子
+    std::srand(static_cast<unsigned>(std::time(0)));
+
+    // 生成范围为 [-perturbationRange, +perturbationRange] 的随机扰动
+    double perturbation = ((std::rand() % 10001) / 10000.0 - 0.5) * 2 * perturbationRange;
+
+    // 计算扰动后的结果，并四舍五入
+    int result = static_cast<int>(std::round(number * (1 + perturbation)));
+
+    return result;
+}
+
+
+void send(Ptr<RdmaQueuePair> q, uint32_t src, uint32_t dst, int send_time)
+{
+	uint32_t port = portNumder[src][dst]++;
+	uint32_t dport = portNumder[dst][src]++; // get a new port number
+	RdmaClientHelper clientHelper(q->m_pg, serverAddress[src], serverAddress[dst], port, dport, q->m_size, has_win ? (global_t == 1 ? maxBdp : pairBdp[n.Get(src)][n.Get(dst)]) : 0, global_t == 1 ? maxRtt : pairRtt[src][dst], Simulator::GetMaximumSimulationTime());
+	ApplicationContainer appCon = clientHelper.Install(n.Get(src));
+	appCon.Start(Time(send_time));
+}
+
 void
 qp_finish(FILE* fout, Ptr<RdmaQueuePair> q)
 {
@@ -265,10 +291,30 @@ qp_finish(FILE* fout, Ptr<RdmaQueuePair> q)
     fflush(fout);
 
     // remove rxQp from the receiver
-    printf("src sending using time: %lu ns *** node receive time: %lu ns  *** node: %d to node: %d \n", (Simulator::Now() - q->startTime).GetTimeStep(), Simulator::Now().GetTimeStep(),  n.Get(sid)->GetId(),n.Get(did)->GetId());
+    //printf("src sending using time: %lu ns *** node receive time: %lu ns  *** node: %d to node: %d \n", (Simulator::Now() - q->startTime).GetTimeStep(), Simulator::Now().GetTimeStep(),  n.Get(sid)->GetId(),n.Get(did)->GetId());
     Ptr<Node> dstNode = n.Get(did);
     Ptr<RdmaDriver> rdma = dstNode->GetObject<RdmaDriver>();
     rdma->m_rdma->DeleteRxQp(q->sip.Get(), q->m_pg, q->sport);
+
+	if(num_conter[n.Get(sid)->GetId()]<200)
+	{
+		printf("src sending using time: %lu ns *** node receive time: %lu ns  *** node: %d to node: %d \n", (Simulator::Now() - q->startTime).GetTimeStep(), Simulator::Now().GetTimeStep(),  n.Get(sid)->GetId(),n.Get(did)->GetId());
+		if(sid == 1)
+		{
+			send(q, n.Get(sid)->GetId(),n.Get(did)->GetId(),addPerturbation(3358547,0) );
+		}else
+		{
+			send(q, n.Get(sid)->GetId(),n.Get(did)->GetId(),addPerturbation(3358547,0));
+		}
+		
+		num_conter[n.Get(sid)->GetId()]++;
+		}else{
+		printf(" finish time: %lu ns  *** node: %d to node: %d \n", Simulator::Now().GetTimeStep(),  n.Get(sid)->GetId(),n.Get(did)->GetId());
+
+	}
+    
+    
+
 }
 
 void
@@ -574,6 +620,8 @@ PrintResultsFlow(std::map<uint32_t, NetDeviceContainer> Src, uint32_t numFlows, 
     }
     Simulator::Schedule(Seconds(delay), PrintResultsFlow, Src, numFlows, delay);
 }
+
+
 
 int
 main(int argc, char* argv[])
