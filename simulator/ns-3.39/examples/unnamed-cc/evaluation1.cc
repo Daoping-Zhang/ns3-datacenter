@@ -20,6 +20,7 @@
 #include <functional>
 #include <ostream>
 #include <queue>
+#include <string>
 #include <vector>
 #undef PGO_TRAINING
 #define PATH_TO_PGO_CONFIG "path_to_pgo_config"
@@ -100,6 +101,7 @@ const uint32_t SERVER_NUM = 6;
 const int TOR_NUM = 2;
 std::string TASK_PATH = BASE_PATH + "ml_traffic.csv";
 std::string CONF_PATH = BASE_PATH + "config.txt";
+std::string OUTPUT_PATH = BASE_PATH + "eval1/output.txt";
 
 // Congestion control: UFCC for UFCC, DCTCP for Crux/fair
 uint32_t cc_mode = CC_MODE::UFCC;
@@ -204,40 +206,6 @@ uint32_t
 ip_to_node_id(Ipv4Address ip)
 {
     return (ip.Get() >> 8) & 0xffff;
-}
-
-void
-qp_finish(FILE* fout, Ptr<RdmaQueuePair> q)
-{
-    uint32_t sid = ip_to_node_id(q->sip);
-    uint32_t did = ip_to_node_id(q->dip);
-    uint64_t base_rtt = pairRtt[sid][did];
-    uint64_t b = pairBw[sid][did];
-    uint32_t total_bytes =
-        q->m_size + ((q->m_size - 1) / packet_payload_size + 1) *
-                        (CustomHeader::GetStaticWholeHeaderSize() -
-                         IntHeader::GetStaticSize()); // translate to the minimum bytes required
-                                                      // (with header but no INT)
-    uint64_t standalone_fct = base_rtt + total_bytes * 8000000000LU / b;
-    // sip, dip, sport, dport, size (B), start_time, fct (ns), standalone_fct (ns)
-    fprintf(fout,
-            "%08x %08x %u %u %lu %lu %lu %lu\n",
-            q->sip.Get(),
-            q->dip.Get(),
-            q->sport,
-            q->dport,
-            q->m_size,
-            q->startTime.GetTimeStep(),
-            (Simulator::Now() - q->startTime).GetTimeStep(),
-            standalone_fct);
-    fflush(fout);
-
-    std::cout << "Transmission finished" << std::endl;
-
-    // remove rxQp from the receiver
-    Ptr<Node> dstNode = n.Get(did);
-    Ptr<RdmaDriver> rdma = dstNode->GetObject<RdmaDriver>();
-    rdma->m_rdma->DeleteRxQp(q->sip.Get(), q->m_pg, q->sport);
 }
 
 void
@@ -549,6 +517,8 @@ PrintResultsFlow(std::map<uint32_t, NetDeviceContainer> Src, uint32_t numFlows, 
 // Defines a training task
 
 std::vector<Task> tasks;
+
+void qp_finish(FILE* fout, Ptr<RdmaQueuePair> q);
 
 void readTasks(std::string path);
 
@@ -1281,20 +1251,28 @@ readTasks(std::string path)
 void
 schedNextTask(uint32_t node_id)
 {
+    std::string output = "";
     if (run_state.currTask[node_id].has_value())
     {
         // has previous task completed, remove it
         auto it = std::find_if(tasks.begin(), tasks.end(), [&](const Task& t) {
             return t.num == run_state.currTask[node_id].value().get().num;
         });
+        output += "SWAPOUT node: " + std::to_string(node_id) + " task: " + std::to_string(it->num) +
+                  " Bytes sent: " + std::to_string(run_state.bytes_sent[node_id]) +
+                  " Computation time: " +
+                  std::to_string(run_state.computation_time[node_id].GetSeconds()) + "\n";
         if (it != tasks.end())
         {
             tasks.erase(it);
         }
+        run_state.bytes_sent[node_id] = 0;
+        run_state.computation_time[node_id] = Seconds(0);
     }
     // randomly choose a task
     if (tasks.size() <= 2) // all other tasks are occupied by other servers
     {
+        run_state.currTask[node_id].reset();
         return;
     }
     while (true)
@@ -1315,7 +1293,9 @@ schedNextTask(uint32_t node_id)
             break;
         }
     }
-    // schedNextTransmit(node_id);
+    output += "SWAPIN node: " + std::to_string(node_id) +
+              " task: " + std::to_string(run_state.currTask[node_id].value().get().num) + "\n";
+    std::cout << output;
     Simulator::Schedule(Seconds(0), schedNextTransmit, node_id);
 }
 
@@ -1360,4 +1340,49 @@ schedNextTransmit(uint32_t node_id)
 void
 schedNextCompute(uint32_t node_id)
 {
+    if (!run_state.currTask[node_id].has_value())
+    { // no task
+        return;
+    }
+    auto task = run_state.currTask[node_id]->get();
+    Simulator::Schedule(task.computation, schedNextTransmit, node_id);
+}
+
+void
+qp_finish(FILE* fout, Ptr<RdmaQueuePair> q)
+{
+    uint32_t sid = ip_to_node_id(q->sip);
+    uint32_t did = ip_to_node_id(q->dip);
+    uint64_t base_rtt = pairRtt[sid][did];
+    uint64_t b = pairBw[sid][did];
+    uint32_t total_bytes =
+        q->m_size + ((q->m_size - 1) / packet_payload_size + 1) *
+                        (CustomHeader::GetStaticWholeHeaderSize() -
+                         IntHeader::GetStaticSize()); // translate to the minimum bytes required
+                                                      // (with header but no INT)
+    uint64_t standalone_fct = base_rtt + total_bytes * 8000000000LU / b;
+    // sip, dip, sport, dport, size (B), start_time, fct (ns), standalone_fct (ns)
+    fprintf(fout,
+            "%08x %08x %u %u %lu %lu %lu %lu\n",
+            q->sip.Get(),
+            q->dip.Get(),
+            q->sport,
+            q->dport,
+            q->m_size,
+            q->startTime.GetTimeStep(),
+            (Simulator::Now() - q->startTime).GetTimeStep(),
+            standalone_fct);
+    fflush(fout);
+
+    std::cout << "Transmission finished" << std::endl;
+
+    // remove rxQp from the receiver
+    Ptr<Node> dstNode = n.Get(did);
+    Ptr<RdmaDriver> rdma = dstNode->GetObject<RdmaDriver>();
+    rdma->m_rdma->DeleteRxQp(q->sip.Get(), q->m_pg, q->sport);
+
+    if (run_state.currTask[sid].has_value())
+    { // seems to be running a task
+        schedNextCompute(sid);
+    }
 }
