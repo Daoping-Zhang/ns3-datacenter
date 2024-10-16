@@ -114,7 +114,6 @@ struct CurrInterval
 
 } curr_interval;
 
-
 // Constants and File Paths
 const std::string BASE_PATH = "examples/unnamed-cc/";
 const std::string LINK_RATE = "100Gbps";
@@ -123,7 +122,7 @@ const int TOR_NUM = 2;
 
 std::string TASK_PATH = BASE_PATH + "ml_traffic.csv";
 std::string CONF_PATH = BASE_PATH + "config.txt";
-std::string OUTPUT_PATH = BASE_PATH + "eval1/output.txt";
+std::string TASKSWAP_PATH = BASE_PATH + "eval1/taskswap.txt";
 std::string fct_output_file = "fct.txt";
 std::string pfc_output_file = "pfc.txt";
 std::string qlen_mon_file;
@@ -189,6 +188,7 @@ std::unordered_map<uint64_t, double> rate2pmax;
 
 // Runtime Variables
 std::ifstream topof, flowf, tracef;
+std::ofstream fout;
 
 NodeContainer n;
 NodeContainer servers;
@@ -257,6 +257,8 @@ main(int argc, char* argv[])
     cmd.Parse(argc, argv);
     readTasks(TASK_PATH);
     conf.open(CONF_PATH);
+    std::filesystem::create_directories(BASE_PATH + "eval1");
+    fout.open(TASKSWAP_PATH);
 
     // parse configuration
     if (temp == "fair")
@@ -926,15 +928,17 @@ main(int argc, char* argv[])
     Simulator::Schedule(Seconds(0), schedNextTask, 0);
     Simulator::Schedule(Seconds(0.003), schedNextTask, 1);
     Simulator::Schedule(Seconds(0.006), schedNextTask, 2);
-    Simulator::Schedule(Seconds(50*maxRtt*1e-9),
+    Simulator::Schedule(Seconds(50 * maxRtt * 1e-9),
                         PrintResultsFlow,
                         sourceNodes,
                         3,
-                        50*maxRtt*1e-9);
+                        50 * maxRtt * 1e-9);
 
     Simulator::Stop(Seconds(simulator_stop_time));
     Simulator::Run();
     Simulator::Destroy();
+
+    fout.close();
     return 0;
 }
 
@@ -981,6 +985,7 @@ schedNextTask(uint32_t node_id)
         output += "SWAPOUT node: " + std::to_string(node_id) + " task: " + std::to_string(it->num) +
                   " Bytes sent: " + std::to_string(run_state.bytes_sent) +
                   " Computation time: " + std::to_string(run_state.computation_time.GetSeconds()) +
+                  " Time: " + std::to_string(Simulator::Now().GetSeconds()) +
                   "\n";
         if (it != tasks.end())
         {
@@ -1014,8 +1019,9 @@ schedNextTask(uint32_t node_id)
         }
     }
     output += "SWAPIN node: " + std::to_string(node_id) +
-              " task: " + std::to_string(run_state.currTask[node_id].value().get().num) + "\n";
-    std::cout << output;
+              " task: " + std::to_string(run_state.currTask[node_id].value().get().num) + 
+              " time: " + std::to_string(Simulator::Now().GetSeconds());
+    fout << output << std::endl;
     Simulator::Schedule(Seconds(0), schedNextTransmit, node_id);
 }
 
