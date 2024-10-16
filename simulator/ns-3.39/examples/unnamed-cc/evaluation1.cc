@@ -86,10 +86,10 @@ struct RunState
     std::array<std::optional<std::reference_wrapper<Task>>, 3> currTask;
     // current iteration of the task
     std::array<uint32_t, 3> iteration;
-    // cumulative sent bytes in total
-    std::array<uint64_t, 3> bytes_sent;
+    // cumulative sent bytes in total (all nodes)
+    uint64_t bytes_sent;
     // cumulative computation time
-    std::array<Time, 3> computation_time;
+    Time computation_time;
 } run_state;
 
 struct QlenDistribution
@@ -242,7 +242,7 @@ main(int argc, char* argv[])
 {
     // input configuration
     CommandLine cmd;
-    std::string temp = "crux";
+    std::string temp = "ufcc";
     std::ifstream conf;
     cmd.AddValue("task-file", "task file path", TASK_PATH);
     cmd.AddValue("mode", "Run mode: fair, crux, ufcc", temp);
@@ -902,24 +902,27 @@ main(int argc, char* argv[])
 
     // test content
 
-    auto clientHelper = RdmaClientHelper(3, // priority group
-                                         serverAddress[0],
-                                         serverAddress[3],
-                                         portNumder[0][3],
-                                         23433,
-                                         100000000,
-                                         1,
-                                         pairRtt[0][3],
-                                         Simulator::GetMaximumSimulationTime());
-    auto appCon = clientHelper.Install(n.Get(0));
-    appCon.Start(Seconds(0));
-    std::cout << "test1" << std::endl;
+    // auto clientHelper = RdmaClientHelper(3, // priority group
+    //                                      serverAddress[0],
+    //                                      serverAddress[3],
+    //                                      portNumder[0][3],
+    //                                      23433,
+    //                                      100000000,
+    //                                      1,
+    //                                      pairRtt[0][3],
+    //                                      Simulator::GetMaximumSimulationTime());
+    // auto appCon = clientHelper.Install(n.Get(0));
+    // appCon.Start(Seconds(0));
+    // std::cout << "test1" << std::endl;
 
-    Simulator::Schedule(Seconds(0.5 * maxRtt * 1e-9),
+    Simulator::Schedule(Seconds(0), schedNextTask, 0);
+    Simulator::Schedule(Seconds(0.003), schedNextTask, 1);
+    Simulator::Schedule(Seconds(0.006), schedNextTask, 2);
+    Simulator::Schedule(Seconds(50*maxRtt*1e-9),
                         PrintResultsFlow,
                         sourceNodes,
                         3,
-                        0.5 * maxRtt * 1e-8);
+                        50*maxRtt*1e-9);
 
     Simulator::Stop(Seconds(simulator_stop_time));
     Simulator::Run();
@@ -968,15 +971,15 @@ schedNextTask(uint32_t node_id)
             return t.num == run_state.currTask[node_id].value().get().num;
         });
         output += "SWAPOUT node: " + std::to_string(node_id) + " task: " + std::to_string(it->num) +
-                  " Bytes sent: " + std::to_string(run_state.bytes_sent[node_id]) +
-                  " Computation time: " +
-                  std::to_string(run_state.computation_time[node_id].GetSeconds()) + "\n";
+                  " Bytes sent: " + std::to_string(run_state.bytes_sent) +
+                  " Computation time: " + std::to_string(run_state.computation_time.GetSeconds()) +
+                  "\n";
         if (it != tasks.end())
         {
             tasks.erase(it);
         }
-        run_state.bytes_sent[node_id] = 0;
-        run_state.computation_time[node_id] = Seconds(0);
+        run_state.bytes_sent = 0;
+        run_state.computation_time = Seconds(0);
     }
     // randomly choose a task
     if (tasks.size() <= 2) // all other tasks are occupied by other servers
@@ -1309,6 +1312,7 @@ get_nic_rate(NodeContainer& n)
     return -1;
 }
 
+// Per-ToR throughput and buffer occupancy
 void
 PrintResults(std::map<uint32_t, NetDeviceContainer> ToR, uint32_t numToRs, double delay)
 {
@@ -1347,19 +1351,20 @@ PrintResults(std::map<uint32_t, NetDeviceContainer> ToR, uint32_t numToRs, doubl
     Simulator::Schedule(Seconds(delay), PrintResults, ToR, numToRs, delay);
 }
 
+// Per-flow (sender) information
 void
 PrintResultsFlow(std::map<uint32_t, NetDeviceContainer> Src, uint32_t numFlows, double delay)
 {
-    for (uint32_t i = 0; i < numFlows; i++)
+    for (uint32_t i = 0; i < numFlows; i++) // for each src (device)
     {
         double throughputTotal = 0;
+        uint64_t txBytes = 0;
 
         for (uint32_t j = 0; j < Src[i].GetN(); j++)
         {
             Ptr<QbbNetDevice> nd = DynamicCast<QbbNetDevice>(Src[i].Get(j));
-            //			uint64_t txBytes = nd->getTxBytes();
-            uint64_t txBytes = nd->getNumTxBytes();
-
+            txBytes += nd->getNumTxBytes();
+            run_state.bytes_sent += txBytes;
             uint64_t _qlen [[maybe_unused]] = nd->GetQueue()->GetNBytesTotal();
             double throughput = double(txBytes * 8) / delay;
             throughputTotal += throughput;
@@ -1369,6 +1374,15 @@ PrintResultsFlow(std::map<uint32_t, NetDeviceContainer> Src, uint32_t numFlows, 
         }
         std::cout << "Src " << i << " Total " << 0 << " throughput " << throughputTotal << " time "
                   << Simulator::Now().GetSeconds() << std::endl;
+
+        if (txBytes == 0) // computing, not transmitting
+        {
+            run_state.computation_time += Seconds(delay);
+        }
+        else
+        {
+            run_state.bytes_sent += txBytes;
+        }
     }
     Simulator::Schedule(Seconds(delay), PrintResultsFlow, Src, numFlows, delay);
 }
