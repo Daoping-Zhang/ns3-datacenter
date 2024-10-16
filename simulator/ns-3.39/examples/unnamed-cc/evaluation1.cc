@@ -90,6 +90,8 @@ struct RunState
     uint64_t bytes_sent;
     // cumulative computation time
     Time computation_time;
+    // runtime priority used by crux, classified by sender; lower value means higher priority
+    std::array<uint32_t, 3> priority = {3, 3, 3};
 } run_state;
 
 struct QlenDistribution
@@ -244,6 +246,7 @@ void readTasks(std::string path);
 void schedNextTask(uint32_t node_id);
 void schedNextTransmit(uint32_t node_id);
 void schedNextCompute(uint32_t node_id);
+void updatePriority();
 
 int
 main(int argc, char* argv[])
@@ -907,24 +910,6 @@ main(int argc, char* argv[])
         }
     }
 
-    topof.close();
-    tracef.close();
-
-    // test content
-
-    // auto clientHelper = RdmaClientHelper(3, // priority group
-    //                                      serverAddress[0],
-    //                                      serverAddress[3],
-    //                                      portNumder[0][3],
-    //                                      23433,
-    //                                      100000000,
-    //                                      1,
-    //                                      pairRtt[0][3],
-    //                                      Simulator::GetMaximumSimulationTime());
-    // auto appCon = clientHelper.Install(n.Get(0));
-    // appCon.Start(Seconds(0));
-    // std::cout << "test1" << std::endl;
-
     Simulator::Schedule(Seconds(0), schedNextTask, 0);
     Simulator::Schedule(Seconds(0.003), schedNextTask, 1);
     Simulator::Schedule(Seconds(0.006), schedNextTask, 2);
@@ -933,11 +918,14 @@ main(int argc, char* argv[])
                         sourceNodes,
                         3,
                         50 * maxRtt * 1e-9);
+    Simulator::Schedule(Seconds(50 * maxRtt * 1e-9), PrintResults, switchUp, 2, 50 * maxRtt * 1e-9);
 
     Simulator::Stop(Seconds(simulator_stop_time));
     Simulator::Run();
     Simulator::Destroy();
 
+    topof.close();
+    tracef.close();
     fout.close();
     return 0;
 }
@@ -985,8 +973,7 @@ schedNextTask(uint32_t node_id)
         output += "SWAPOUT node: " + std::to_string(node_id) + " task: " + std::to_string(it->num) +
                   " Bytes sent: " + std::to_string(run_state.bytes_sent) +
                   " Computation time: " + std::to_string(run_state.computation_time.GetSeconds()) +
-                  " Time: " + std::to_string(Simulator::Now().GetSeconds()) +
-                  "\n";
+                  " Time: " + std::to_string(Simulator::Now().GetSeconds()) + "\n";
         if (it != tasks.end())
         {
             tasks.erase(it);
@@ -1019,9 +1006,13 @@ schedNextTask(uint32_t node_id)
         }
     }
     output += "SWAPIN node: " + std::to_string(node_id) +
-              " task: " + std::to_string(run_state.currTask[node_id].value().get().num) + 
+              " task: " + std::to_string(run_state.currTask[node_id].value().get().num) +
               " time: " + std::to_string(Simulator::Now().GetSeconds());
     fout << output << std::endl;
+    if (runmode == RUN_MODE::CRUX) // basic priority management
+    {
+        Simulator::Schedule(Seconds(0), updatePriority);
+    }
     Simulator::Schedule(Seconds(0), schedNextTransmit, node_id);
 }
 
@@ -1047,7 +1038,7 @@ schedNextTransmit(uint32_t node_id)
     uint64_t linkRateBps = std::stoull(LINK_RATE.substr(0, LINK_RATE.size() - 4)) * 1e9 / 8;
     uint32_t flowSize = task.communication.GetSeconds() * linkRateBps;
     auto clientHelper = RdmaClientHelper(
-        3, // priority group
+        run_state.priority[node_id], // priority group, 3 by default
         serverAddress[node_id],
         serverAddress[node_id + 3], // destination is fixed to 0-3, 1-4, 2-5
         portNumder[node_id][node_id + 3],
@@ -1351,7 +1342,7 @@ PrintResults(std::map<uint32_t, NetDeviceContainer> ToR, uint32_t numToRs, doubl
 
             torBuffer += qlen;
             double throughput = double(txBytes * 8) / delay;
-            if (j == 16)
+            if (j == 0)
             { //  ToDo. very ugly hardcode here specific to the burst evaluation scenario where 16
               //  is the receiver in flow-burstExp.txt.
                 throughputTotal += throughput;
@@ -1427,4 +1418,35 @@ uint32_t
 ip_to_node_id(Ipv4Address ip)
 {
     return (ip.Get() >> 8) & 0xffff;
+}
+
+// Update task priority between ongoing tasks
+void
+updatePriority()
+{
+    std::pair<double, uint32_t> intensity_pair[3];
+    for (auto i = 0; i < 3; i++)
+    {
+        double intensity;
+        if (!run_state.currTask[i].has_value())
+        {
+            intensity = 0;
+        }
+        else
+        {
+            auto task = run_state.currTask[i]->get();
+            intensity = task.computation.GetSeconds() / task.communication.GetSeconds();
+        }
+        intensity_pair[i] = std::make_pair(intensity, i);
+    }
+    // for the same intensity, keep the task already running as the highest priority
+    std::stable_sort(intensity_pair, intensity_pair + 3);
+    for (auto i = 0; i < 3; i++)
+    {
+        run_state.priority[intensity_pair[i].second] = 3 - i;
+    }
+    std::cout << "Intensity: " << intensity_pair[0].first << " " << intensity_pair[1].first << " "
+              << intensity_pair[2].first << std::endl;
+    std::cout << "Priority updated, new priority: " << run_state.priority[0] << " "
+              << run_state.priority[1] << " " << run_state.priority[2] << std::endl;
 }
