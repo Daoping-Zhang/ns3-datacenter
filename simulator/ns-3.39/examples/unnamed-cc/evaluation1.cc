@@ -92,6 +92,28 @@ struct RunState
     std::array<Time, 3> computation_time;
 } run_state;
 
+struct QlenDistribution
+{
+    std::vector<uint32_t> cnt; // cnt[i] is the number of times that the queue len is i KB
+
+    void add(uint32_t qlen)
+    {
+        uint32_t kb = qlen / 1000;
+        if (cnt.size() < kb + 1)
+        {
+            cnt.resize(kb + 1);
+        }
+        cnt[kb]++;
+    }
+};
+
+struct CurrInterval
+{
+    Time computing_time = Seconds(0);
+    // transmitted bytes
+
+} curr_interval;
+
 NS_LOG_COMPONENT_DEFINE("UNNAMED_EVALUATION1");
 
 // When using `ns3 run`, the base path is the ns3 root directory
@@ -189,343 +211,30 @@ std::vector<Ipv4Address> serverAddress;
 std::unordered_map<uint32_t, std::unordered_map<uint32_t, uint16_t>> portNumder;
 
 // Information in the current interval (after last task swap in/out)
-struct CurrInterval
-{
-    Time computing_time = Seconds(0);
-    // transmitted bytes
-
-} curr_interval;
-
-Ipv4Address
-node_id_to_ip(uint32_t id)
-{
-    return Ipv4Address(0x0b000001 + ((id / 256) * 0x00010000) + ((id % 256) * 0x00000100));
-}
-
-uint32_t
-ip_to_node_id(Ipv4Address ip)
-{
-    return (ip.Get() >> 8) & 0xffff;
-}
-
-void
-get_pfc(FILE* fout, Ptr<QbbNetDevice> dev, uint32_t type)
-{
-    fprintf(fout,
-            "%lu %u %u %u %u\n",
-            Simulator::Now().GetTimeStep(),
-            dev->GetNode()->GetId(),
-            dev->GetNode()->GetNodeType(),
-            dev->GetIfIndex(),
-            type);
-}
-
-struct QlenDistribution
-{
-    std::vector<uint32_t> cnt; // cnt[i] is the number of times that the queue len is i KB
-
-    void add(uint32_t qlen)
-    {
-        uint32_t kb = qlen / 1000;
-        if (cnt.size() < kb + 1)
-        {
-            cnt.resize(kb + 1);
-        }
-        cnt[kb]++;
-    }
-};
 
 std::map<uint32_t, std::map<uint32_t, QlenDistribution>> queue_result;
 
-void
-monitor_buffer(FILE* qlen_output, NodeContainer* n)
-{
-    for (uint32_t i = 0; i < n->GetN(); i++)
-    {
-        if (n->Get(i)->GetNodeType() == 1)
-        { // is switch
-            Ptr<SwitchNode> sw = DynamicCast<SwitchNode>(n->Get(i));
-            if (queue_result.find(i) == queue_result.end())
-            {
-                queue_result[i];
-            }
-            for (uint32_t j = 1; j < sw->GetNDevices(); j++)
-            {
-                uint32_t size = 0;
-                for (uint32_t k = 0; k < SwitchMmu::qCnt; k++)
-                {
-                    {
-                        size += sw->m_mmu->egress_bytes[j][k];
-                    }
-                }
-                queue_result[i][j].add(size);
-            }
-        }
-    }
-    if (Simulator::Now().GetTimeStep() % qlen_dump_interval == 0)
-    {
-        fprintf(qlen_output, "time: %lu\n", Simulator::Now().GetTimeStep());
-        for (auto& it0 : queue_result)
-        {
-            for (auto& it1 : it0.second)
-            {
-                fprintf(qlen_output, "%u %u", it0.first, it1.first);
-                auto& dist = it1.second.cnt;
-                for (uint32_t i = 0; i < dist.size(); i++)
-                {
-                    fprintf(qlen_output, " %u", dist[i]);
-                }
-            }
-            fprintf(qlen_output, "\n");
-        }
-        fflush(qlen_output);
-    }
-    if (Simulator::Now().GetTimeStep() < qlen_mon_end)
-    {
-        Simulator::Schedule(NanoSeconds(qlen_mon_interval), &monitor_buffer, qlen_output, n);
-    }
-}
-
-void
-CalculateRoute(Ptr<Node> host)
-{
-    // queue for the BFS.
-    std::vector<Ptr<Node>> q;
-    // Distance from the host to each node.
-    std::map<Ptr<Node>, int> dis;
-    std::map<Ptr<Node>, uint64_t> delay;
-    std::map<Ptr<Node>, uint64_t> txDelay;
-    std::map<Ptr<Node>, uint64_t> bw;
-    // init BFS.
-    q.push_back(host);
-    dis[host] = 0;
-    delay[host] = 0;
-    txDelay[host] = 0;
-    bw[host] = 0xffffffffffffffffLU;
-    // BFS.
-    for (int i = 0; i < (int)q.size(); i++)
-    {
-        Ptr<Node> now = q[i];
-        int d = dis[now];
-        for (auto it = nbr2if[now].begin(); it != nbr2if[now].end(); it++)
-        {
-            // skip down link
-            if (!it->second.up)
-            {
-                continue;
-            }
-            Ptr<Node> next = it->first;
-            // If 'next' have not been visited.
-            if (dis.find(next) == dis.end())
-            {
-                dis[next] = d + 1;
-                delay[next] = delay[now] + it->second.delay;
-                txDelay[next] =
-                    txDelay[now] + packet_payload_size * 1000000000LU * 8 / it->second.bw;
-                bw[next] = std::min(bw[now], it->second.bw);
-                // we only enqueue switch, because we do not want packets to go through host as
-                // middle point
-                if (next->GetNodeType())
-                {
-                    q.push_back(next);
-                }
-            }
-            // if 'now' is on the shortest path from 'next' to 'host'.
-            if (d + 1 == dis[next])
-            {
-                nextHop[next][host].push_back(now);
-            }
-        }
-    }
-    for (const auto& it : delay)
-    {
-        pairDelay[it.first][host] = it.second;
-    }
-    for (const auto& it : txDelay)
-    {
-        pairTxDelay[it.first][host] = it.second;
-    }
-    for (const auto& it : bw)
-    {
-        pairBw[it.first->GetId()][host->GetId()] = it.second;
-    }
-}
-
-void
-CalculateRoutes(NodeContainer& n)
-{
-    for (int i = 0; i < (int)n.GetN(); i++)
-    {
-        Ptr<Node> node = n.Get(i);
-        if (node->GetNodeType() == 0)
-        {
-            CalculateRoute(node);
-        }
-    }
-}
-
-void
-SetRoutingEntries()
-{
-    // For each node.
-    for (auto i = nextHop.begin(); i != nextHop.end(); i++)
-    {
-        Ptr<Node> node = i->first;
-        auto& table = i->second;
-        for (auto j = table.begin(); j != table.end(); j++)
-        {
-            // The destination node.
-            Ptr<Node> dst = j->first;
-            // The IP address of the dst.
-            Ipv4Address dstAddr = dst->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal();
-            // The next hops towards the dst.
-            std::vector<Ptr<Node>> nexts = j->second;
-            for (int k = 0; k < (int)nexts.size(); k++)
-            {
-                Ptr<Node> next = nexts[k];
-                uint32_t interface = nbr2if[node][next].idx;
-                if (node->GetNodeType())
-                {
-                    DynamicCast<SwitchNode>(node)->AddTableEntry(dstAddr, interface);
-                }
-                else
-                {
-                    node->GetObject<RdmaDriver>()->m_rdma->AddTableEntry(dstAddr, interface);
-                }
-            }
-        }
-    }
-}
-
-// take down the link between a and b, and redo the routing
-void
-TakeDownLink(NodeContainer n, Ptr<Node> a, Ptr<Node> b)
-{
-    if (!nbr2if[a][b].up)
-    {
-        return;
-    }
-    // take down link between a and b
-    nbr2if[a][b].up = nbr2if[b][a].up = false;
-    nextHop.clear();
-    CalculateRoutes(n);
-    // clear routing tables
-    for (uint32_t i = 0; i < n.GetN(); i++)
-    {
-        if (n.Get(i)->GetNodeType() == 1)
-        {
-            DynamicCast<SwitchNode>(n.Get(i))->ClearTable();
-        }
-        else
-        {
-            n.Get(i)->GetObject<RdmaDriver>()->m_rdma->ClearTable();
-        }
-    }
-    DynamicCast<QbbNetDevice>(a->GetDevice(nbr2if[a][b].idx))->TakeDown();
-    DynamicCast<QbbNetDevice>(b->GetDevice(nbr2if[b][a].idx))->TakeDown();
-    // reset routing table
-    SetRoutingEntries();
-
-    // redistribute qp on each host
-    for (uint32_t i = 0; i < n.GetN(); i++)
-    {
-        if (n.Get(i)->GetNodeType() == 0)
-        {
-            n.Get(i)->GetObject<RdmaDriver>()->m_rdma->RedistributeQp();
-        }
-    }
-}
-
-uint64_t
-get_nic_rate(NodeContainer& n)
-{
-    for (uint32_t i = 0; i < n.GetN(); i++)
-    {
-        if (n.Get(i)->GetNodeType() == 0)
-        {
-            return DynamicCast<QbbNetDevice>(n.Get(i)->GetDevice(1))->GetDataRate().GetBitRate();
-        }
-    }
-    NS_LOG_WARN("Get NIC Rate: no host found");
-    return -1;
-}
-
-void
-PrintResults(std::map<uint32_t, NetDeviceContainer> ToR, uint32_t numToRs, double delay)
-{
-    for (uint32_t i = 0; i < numToRs; i++)
-    {
-        double throughputTotal = 0;
-        uint64_t torBuffer = 0;
-        double power;
-        for (uint32_t j = 0; j < ToR[i].GetN(); j++)
-        {
-            Ptr<QbbNetDevice> nd = DynamicCast<QbbNetDevice>(ToR[i].Get(j));
-            //			uint64_t txBytes = nd->getTxBytes();
-            uint64_t txBytes = nd->GetQueue()->getTxBytes();
-            double rxBytes = nd->getNumRxBytes();
-
-            uint64_t qlen = nd->GetQueue()->GetNBytesTotal();
-            uint64_t bw = nd->GetDataRate().GetBitRate(); // maxRtt
-
-            torBuffer += qlen;
-            double throughput = double(txBytes * 8) / delay;
-            if (j == 16)
-            { //  ToDo. very ugly hardcode here specific to the burst evaluation scenario where 16
-              //  is the receiver in flow-burstExp.txt.
-                throughputTotal += throughput;
-                power = (rxBytes * 8.0 / delay) * (qlen + bw * maxRtt * 1e-9) /
-                        (bw * (bw * maxRtt * 1e-9));
-            }
-            std::cout << "ToR " << i << " Port " << j << " throughput " << throughput << " txBytes "
-                      << txBytes << " qlen " << qlen << " time " << Simulator::Now().GetSeconds()
-                      << " normpower " << power << std::endl;
-        }
-        std::cout << "ToR " << i << " Total " << 0 << " throughput " << throughputTotal
-                  << " buffer " << torBuffer << " time " << Simulator::Now().GetSeconds()
-                  << std::endl;
-    }
-    Simulator::Schedule(Seconds(delay), PrintResults, ToR, numToRs, delay);
-}
-
-void
-PrintResultsFlow(std::map<uint32_t, NetDeviceContainer> Src, uint32_t numFlows, double delay)
-{
-    for (uint32_t i = 0; i < numFlows; i++)
-    {
-        double throughputTotal = 0;
-
-        for (uint32_t j = 0; j < Src[i].GetN(); j++)
-        {
-            Ptr<QbbNetDevice> nd = DynamicCast<QbbNetDevice>(Src[i].Get(j));
-            //			uint64_t txBytes = nd->getTxBytes();
-            uint64_t txBytes = nd->getNumTxBytes();
-
-            uint64_t _qlen [[maybe_unused]] = nd->GetQueue()->GetNBytesTotal();
-            double throughput = double(txBytes * 8) / delay;
-            throughputTotal += throughput;
-            // std::cout << "Src " << i << " Port " << j << " throughput "<< throughput << " txBytes
-            // " << txBytes << " qlen " << qlen << " time " << Simulator::Now().GetSeconds() <<
-            // std::endl;
-        }
-        std::cout << "Src " << i << " Total " << 0 << " throughput " << throughputTotal << " time "
-                  << Simulator::Now().GetSeconds() << std::endl;
-    }
-    Simulator::Schedule(Seconds(delay), PrintResultsFlow, Src, numFlows, delay);
-}
-
-// Defines a training task
-
 std::vector<Task> tasks;
 
+/************************************************
+ * Function declarations
+ ***********************************************/
+
+uint32_t ip_to_node_id(Ipv4Address ip);
+Ipv4Address node_id_to_ip(uint32_t id);
+void get_pfc(FILE* fout, Ptr<QbbNetDevice> dev, uint32_t type);
+void monitor_buffer(FILE* qlen_output, NodeContainer* n);
+void CalculateRoute(Ptr<Node> host);
+void CalculateRoutes(NodeContainer& n);
+void SetRoutingEntries();
+void TakeDownLink(NodeContainer n, Ptr<Node> a, Ptr<Node> b);
+uint64_t get_nic_rate(NodeContainer& n);
+void PrintResults(std::map<uint32_t, NetDeviceContainer> ToR, uint32_t numToRs, double delay);
+void PrintResultsFlow(std::map<uint32_t, NetDeviceContainer> Src, uint32_t numFlows, double delay);
 void qp_finish(FILE* fout, Ptr<RdmaQueuePair> q);
-
 void readTasks(std::string path);
-
 void schedNextTask(uint32_t node_id);
-
 void schedNextTransmit(uint32_t node_id);
-
 void schedNextCompute(uint32_t node_id);
 
 int
@@ -1385,4 +1094,305 @@ qp_finish(FILE* fout, Ptr<RdmaQueuePair> q)
     { // seems to be running a task
         schedNextCompute(sid);
     }
+}
+
+void
+monitor_buffer(FILE* qlen_output, NodeContainer* n)
+{
+    for (uint32_t i = 0; i < n->GetN(); i++)
+    {
+        if (n->Get(i)->GetNodeType() == 1)
+        { // is switch
+            Ptr<SwitchNode> sw = DynamicCast<SwitchNode>(n->Get(i));
+            if (queue_result.find(i) == queue_result.end())
+            {
+                queue_result[i];
+            }
+            for (uint32_t j = 1; j < sw->GetNDevices(); j++)
+            {
+                uint32_t size = 0;
+                for (uint32_t k = 0; k < SwitchMmu::qCnt; k++)
+                {
+                    {
+                        size += sw->m_mmu->egress_bytes[j][k];
+                    }
+                }
+                queue_result[i][j].add(size);
+            }
+        }
+    }
+    if (Simulator::Now().GetTimeStep() % qlen_dump_interval == 0)
+    {
+        fprintf(qlen_output, "time: %lu\n", Simulator::Now().GetTimeStep());
+        for (auto& it0 : queue_result)
+        {
+            for (auto& it1 : it0.second)
+            {
+                fprintf(qlen_output, "%u %u", it0.first, it1.first);
+                auto& dist = it1.second.cnt;
+                for (uint32_t i = 0; i < dist.size(); i++)
+                {
+                    fprintf(qlen_output, " %u", dist[i]);
+                }
+            }
+            fprintf(qlen_output, "\n");
+        }
+        fflush(qlen_output);
+    }
+    if (Simulator::Now().GetTimeStep() < qlen_mon_end)
+    {
+        Simulator::Schedule(NanoSeconds(qlen_mon_interval), &monitor_buffer, qlen_output, n);
+    }
+}
+
+void
+CalculateRoute(Ptr<Node> host)
+{
+    // queue for the BFS.
+    std::vector<Ptr<Node>> q;
+    // Distance from the host to each node.
+    std::map<Ptr<Node>, int> dis;
+    std::map<Ptr<Node>, uint64_t> delay;
+    std::map<Ptr<Node>, uint64_t> txDelay;
+    std::map<Ptr<Node>, uint64_t> bw;
+    // init BFS.
+    q.push_back(host);
+    dis[host] = 0;
+    delay[host] = 0;
+    txDelay[host] = 0;
+    bw[host] = 0xffffffffffffffffLU;
+    // BFS.
+    for (int i = 0; i < (int)q.size(); i++)
+    {
+        Ptr<Node> now = q[i];
+        int d = dis[now];
+        for (auto it = nbr2if[now].begin(); it != nbr2if[now].end(); it++)
+        {
+            // skip down link
+            if (!it->second.up)
+            {
+                continue;
+            }
+            Ptr<Node> next = it->first;
+            // If 'next' have not been visited.
+            if (dis.find(next) == dis.end())
+            {
+                dis[next] = d + 1;
+                delay[next] = delay[now] + it->second.delay;
+                txDelay[next] =
+                    txDelay[now] + packet_payload_size * 1000000000LU * 8 / it->second.bw;
+                bw[next] = std::min(bw[now], it->second.bw);
+                // we only enqueue switch, because we do not want packets to go through host as
+                // middle point
+                if (next->GetNodeType())
+                {
+                    q.push_back(next);
+                }
+            }
+            // if 'now' is on the shortest path from 'next' to 'host'.
+            if (d + 1 == dis[next])
+            {
+                nextHop[next][host].push_back(now);
+            }
+        }
+    }
+    for (const auto& it : delay)
+    {
+        pairDelay[it.first][host] = it.second;
+    }
+    for (const auto& it : txDelay)
+    {
+        pairTxDelay[it.first][host] = it.second;
+    }
+    for (const auto& it : bw)
+    {
+        pairBw[it.first->GetId()][host->GetId()] = it.second;
+    }
+}
+
+void
+CalculateRoutes(NodeContainer& n)
+{
+    for (int i = 0; i < (int)n.GetN(); i++)
+    {
+        Ptr<Node> node = n.Get(i);
+        if (node->GetNodeType() == 0)
+        {
+            CalculateRoute(node);
+        }
+    }
+}
+
+void
+SetRoutingEntries()
+{
+    // For each node.
+    for (auto i = nextHop.begin(); i != nextHop.end(); i++)
+    {
+        Ptr<Node> node = i->first;
+        auto& table = i->second;
+        for (auto j = table.begin(); j != table.end(); j++)
+        {
+            // The destination node.
+            Ptr<Node> dst = j->first;
+            // The IP address of the dst.
+            Ipv4Address dstAddr = dst->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal();
+            // The next hops towards the dst.
+            std::vector<Ptr<Node>> nexts = j->second;
+            for (int k = 0; k < (int)nexts.size(); k++)
+            {
+                Ptr<Node> next = nexts[k];
+                uint32_t interface = nbr2if[node][next].idx;
+                if (node->GetNodeType())
+                {
+                    DynamicCast<SwitchNode>(node)->AddTableEntry(dstAddr, interface);
+                }
+                else
+                {
+                    node->GetObject<RdmaDriver>()->m_rdma->AddTableEntry(dstAddr, interface);
+                }
+            }
+        }
+    }
+}
+
+// take down the link between a and b, and redo the routing
+void
+TakeDownLink(NodeContainer n, Ptr<Node> a, Ptr<Node> b)
+{
+    if (!nbr2if[a][b].up)
+    {
+        return;
+    }
+    // take down link between a and b
+    nbr2if[a][b].up = nbr2if[b][a].up = false;
+    nextHop.clear();
+    CalculateRoutes(n);
+    // clear routing tables
+    for (uint32_t i = 0; i < n.GetN(); i++)
+    {
+        if (n.Get(i)->GetNodeType() == 1)
+        {
+            DynamicCast<SwitchNode>(n.Get(i))->ClearTable();
+        }
+        else
+        {
+            n.Get(i)->GetObject<RdmaDriver>()->m_rdma->ClearTable();
+        }
+    }
+    DynamicCast<QbbNetDevice>(a->GetDevice(nbr2if[a][b].idx))->TakeDown();
+    DynamicCast<QbbNetDevice>(b->GetDevice(nbr2if[b][a].idx))->TakeDown();
+    // reset routing table
+    SetRoutingEntries();
+
+    // redistribute qp on each host
+    for (uint32_t i = 0; i < n.GetN(); i++)
+    {
+        if (n.Get(i)->GetNodeType() == 0)
+        {
+            n.Get(i)->GetObject<RdmaDriver>()->m_rdma->RedistributeQp();
+        }
+    }
+}
+
+uint64_t
+get_nic_rate(NodeContainer& n)
+{
+    for (uint32_t i = 0; i < n.GetN(); i++)
+    {
+        if (n.Get(i)->GetNodeType() == 0)
+        {
+            return DynamicCast<QbbNetDevice>(n.Get(i)->GetDevice(1))->GetDataRate().GetBitRate();
+        }
+    }
+    NS_LOG_WARN("Get NIC Rate: no host found");
+    return -1;
+}
+
+void
+PrintResults(std::map<uint32_t, NetDeviceContainer> ToR, uint32_t numToRs, double delay)
+{
+    for (uint32_t i = 0; i < numToRs; i++)
+    {
+        double throughputTotal = 0;
+        uint64_t torBuffer = 0;
+        double power;
+        for (uint32_t j = 0; j < ToR[i].GetN(); j++)
+        {
+            Ptr<QbbNetDevice> nd = DynamicCast<QbbNetDevice>(ToR[i].Get(j));
+            //			uint64_t txBytes = nd->getTxBytes();
+            uint64_t txBytes = nd->GetQueue()->getTxBytes();
+            double rxBytes = nd->getNumRxBytes();
+
+            uint64_t qlen = nd->GetQueue()->GetNBytesTotal();
+            uint64_t bw = nd->GetDataRate().GetBitRate(); // maxRtt
+
+            torBuffer += qlen;
+            double throughput = double(txBytes * 8) / delay;
+            if (j == 16)
+            { //  ToDo. very ugly hardcode here specific to the burst evaluation scenario where 16
+              //  is the receiver in flow-burstExp.txt.
+                throughputTotal += throughput;
+                power = (rxBytes * 8.0 / delay) * (qlen + bw * maxRtt * 1e-9) /
+                        (bw * (bw * maxRtt * 1e-9));
+            }
+            std::cout << "ToR " << i << " Port " << j << " throughput " << throughput << " txBytes "
+                      << txBytes << " qlen " << qlen << " time " << Simulator::Now().GetSeconds()
+                      << " normpower " << power << std::endl;
+        }
+        std::cout << "ToR " << i << " Total " << 0 << " throughput " << throughputTotal
+                  << " buffer " << torBuffer << " time " << Simulator::Now().GetSeconds()
+                  << std::endl;
+    }
+    Simulator::Schedule(Seconds(delay), PrintResults, ToR, numToRs, delay);
+}
+
+void
+PrintResultsFlow(std::map<uint32_t, NetDeviceContainer> Src, uint32_t numFlows, double delay)
+{
+    for (uint32_t i = 0; i < numFlows; i++)
+    {
+        double throughputTotal = 0;
+
+        for (uint32_t j = 0; j < Src[i].GetN(); j++)
+        {
+            Ptr<QbbNetDevice> nd = DynamicCast<QbbNetDevice>(Src[i].Get(j));
+            //			uint64_t txBytes = nd->getTxBytes();
+            uint64_t txBytes = nd->getNumTxBytes();
+
+            uint64_t _qlen [[maybe_unused]] = nd->GetQueue()->GetNBytesTotal();
+            double throughput = double(txBytes * 8) / delay;
+            throughputTotal += throughput;
+            // std::cout << "Src " << i << " Port " << j << " throughput "<< throughput << " txBytes
+            // " << txBytes << " qlen " << qlen << " time " << Simulator::Now().GetSeconds() <<
+            // std::endl;
+        }
+        std::cout << "Src " << i << " Total " << 0 << " throughput " << throughputTotal << " time "
+                  << Simulator::Now().GetSeconds() << std::endl;
+    }
+    Simulator::Schedule(Seconds(delay), PrintResultsFlow, Src, numFlows, delay);
+}
+
+void
+get_pfc(FILE* fout, Ptr<QbbNetDevice> dev, uint32_t type)
+{
+    fprintf(fout,
+            "%lu %u %u %u %u\n",
+            Simulator::Now().GetTimeStep(),
+            dev->GetNode()->GetId(),
+            dev->GetNode()->GetNodeType(),
+            dev->GetIfIndex(),
+            type);
+}
+
+Ipv4Address
+node_id_to_ip(uint32_t id)
+{
+    return Ipv4Address(0x0b000001 + ((id / 256) * 0x00010000) + ((id % 256) * 0x00000100));
+}
+
+uint32_t
+ip_to_node_id(Ipv4Address ip)
+{
+    return (ip.Get() >> 8) & 0xffff;
 }
