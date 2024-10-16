@@ -114,90 +114,101 @@ struct CurrInterval
 
 } curr_interval;
 
-NS_LOG_COMPONENT_DEFINE("UNNAMED_EVALUATION1");
 
-// When using `ns3 run`, the base path is the ns3 root directory
+// Constants and File Paths
 const std::string BASE_PATH = "examples/unnamed-cc/";
 const std::string LINK_RATE = "100Gbps";
 const uint32_t SERVER_NUM = 6;
 const int TOR_NUM = 2;
+
 std::string TASK_PATH = BASE_PATH + "ml_traffic.csv";
 std::string CONF_PATH = BASE_PATH + "config.txt";
 std::string OUTPUT_PATH = BASE_PATH + "eval1/output.txt";
-
-// Congestion control: UFCC for UFCC, DCTCP for Crux/fair
-uint32_t cc_mode = CC_MODE::UFCC;
-
-bool enable_qcn = true;
-uint32_t packet_payload_size = 1000, l2_chunk_size = 0, l2_ack_interval = 0;
-double pause_time = 5, simulator_stop_time = 3.01;
 std::string fct_output_file = "fct.txt";
 std::string pfc_output_file = "pfc.txt";
+std::string qlen_mon_file;
+NS_LOG_COMPONENT_DEFINE("UNNAMED_EVALUATION1");
 
-double alpha_resume_interval = 55, rp_timer, ewma_gain = 1 / 16;
-double rate_decrease_interval = 4;
-uint32_t fast_recovery_times = 5;
-std::string rate_ai, rate_hai, min_rate = "100Mb/s";
-std::string dctcp_rate_ai = "1000Mb/s";
-
-bool clamp_target_rate = false, l2_back_to_zero = false;
-double error_rate_per_link = 0.0;
-uint32_t has_win = 1;
-uint32_t global_t = 1;
-uint32_t mi_thresh = 5;
-bool var_win = false, fast_react = true;
+// Configuration Parameters
+bool enable_qcn = true;
+uint32_t cc_mode = CC_MODE::UFCC;
+bool clamp_target_rate = false;
+bool l2_back_to_zero = false;
+bool rate_bound = true;
 bool multi_rate = true;
 bool sample_feedback = false;
+bool var_win = false;
+bool fast_react = true;
+bool enable_trace = true;
+
+// Timing and Simulation Parameters
+double pause_time = 5.0;
+double simulator_stop_time = 3.01;
+double alpha_resume_interval = 55.0;
+double rp_timer;
+double ewma_gain = 1.0 / 16.0;
+double rate_decrease_interval = 4.0;
+double error_rate_per_link = 0.0;
 double pint_log_base = 1.05;
 double pint_prob = 1.0;
 double u_target = 0.95;
+
+// Packet and Rate Parameters
+uint32_t packet_payload_size = 1000;
+uint32_t l2_chunk_size = 0;
+uint32_t l2_ack_interval = 0;
+std::string rate_ai;
+std::string rate_hai;
+std::string min_rate = "100Mb/s";
+std::string dctcp_rate_ai = "1000Mb/s";
+
+// Recovery and Window Parameters
+uint32_t fast_recovery_times = 5;
+uint32_t has_win = 1;
+uint32_t global_t = 1;
+uint32_t mi_thresh = 5;
 uint32_t int_multi = 1;
-bool rate_bound = true;
-
 uint32_t ack_high_prio = 0;
-uint64_t link_down_time = 0;
-uint32_t link_down_A = 0, link_down_B = 0;
 
-uint32_t enable_trace = 1;
-
+// Buffer and Queue Parameters
 uint32_t buffer_size = 16;
+uint32_t qlen_dump_interval = 100000000;
+uint32_t qlen_mon_interval = 100;
+uint64_t qlen_mon_start = 2000000000;
+uint64_t qlen_mon_end = 2100000000;
 
-uint32_t qlen_dump_interval = 100000000, qlen_mon_interval = 100;
-uint64_t qlen_mon_start = 2000000000, qlen_mon_end = 2100000000;
-std::string qlen_mon_file;
+// Link Down Parameters
+uint64_t link_down_time = 0;
+uint32_t link_down_A = 0;
+uint32_t link_down_B = 0;
 
-std::unordered_map<uint64_t, uint32_t> rate2kmax, rate2kmin;
+// Rate Mappings
+std::unordered_map<uint64_t, uint32_t> rate2kmax;
+std::unordered_map<uint64_t, uint32_t> rate2kmin;
 std::unordered_map<uint64_t, double> rate2pmax;
 
-/************************************************
- * Runtime varibles
- ***********************************************/
+// Runtime Variables
 std::ifstream topof, flowf, tracef;
 
 NodeContainer n;
-NetDeviceContainer switchToSwitchInterfaces;
-std::map<uint32_t, std::map<uint32_t, std::vector<Ptr<QbbNetDevice>>>> switchToSwitch;
-
-// vamsi
-std::map<uint32_t, uint32_t> switchNumToId;
-std::map<uint32_t, uint32_t> switchIdToNum;
-std::map<uint32_t, NetDeviceContainer> switchUp;
-std::map<uint32_t, NetDeviceContainer> switchDown;
-// NetDeviceContainer switchUp[switch_num];
-std::map<uint32_t, NetDeviceContainer> sourceNodes;
-
-int num_conter[6] = {0};
-
 NodeContainer servers;
 NodeContainer tors;
 NodeContainer all_nodes;
 
-uint64_t nic_rate;
+NetDeviceContainer switchToSwitchInterfaces;
 
+std::map<uint32_t, uint32_t> switchNumToId;
+std::map<uint32_t, uint32_t> switchIdToNum;
+std::map<uint32_t, NetDeviceContainer> switchUp;
+std::map<uint32_t, NetDeviceContainer> switchDown;
+std::map<uint32_t, NetDeviceContainer> sourceNodes;
+
+int num_conter[6] = {0};
+
+uint64_t nic_rate;
 uint64_t maxRtt, maxBdp;
 
 std::map<Ptr<Node>, std::map<Ptr<Node>, Interface>> nbr2if;
-// Mapping destination to next hop for each node: <node, <dest, <nexthop0, ...> > >
 std::map<Ptr<Node>, std::map<Ptr<Node>, std::vector<Ptr<Node>>>> nextHop;
 std::map<Ptr<Node>, std::map<Ptr<Node>, uint64_t>> pairDelay;
 std::map<Ptr<Node>, std::map<Ptr<Node>, uint64_t>> pairTxDelay;
@@ -206,15 +217,12 @@ std::map<Ptr<Node>, std::map<Ptr<Node>, uint64_t>> pairBdp;
 std::map<uint32_t, std::map<uint32_t, uint64_t>> pairRtt;
 
 std::vector<Ipv4Address> serverAddress;
-
-// maintain port number for each host pair
 std::unordered_map<uint32_t, std::unordered_map<uint32_t, uint16_t>> portNumder;
 
-// Information in the current interval (after last task swap in/out)
-
 std::map<uint32_t, std::map<uint32_t, QlenDistribution>> queue_result;
-
 std::vector<Task> tasks;
+
+std::map<uint32_t, std::map<uint32_t, std::vector<Ptr<QbbNetDevice>>>> switchToSwitch;
 
 /************************************************
  * Function declarations
