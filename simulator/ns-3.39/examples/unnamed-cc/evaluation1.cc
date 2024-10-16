@@ -656,6 +656,9 @@ main(int argc, char* argv[])
         all_nodes.Add(sw);
         sw->SetAttribute("EcnEnabled", BooleanValue(enable_qcn));
         sw->SetNodeType(1); // set as ToR
+        auto switchID = sw->GetId();
+        switchNumToId[i] = switchID;
+        switchIdToNum[switchID] = i;
     }
 
     InternetStackHelper internet;
@@ -798,7 +801,6 @@ main(int argc, char* argv[])
     setupSwitch(6);
     setupSwitch(7);
 
-#if ENABLE_QP
     FILE* fct_output = fopen(fct_output_file.c_str(), "w");
     // install rdma driver to nodes
     for (auto i = 0; i < SERVER_NUM; i++)
@@ -834,7 +836,6 @@ main(int argc, char* argv[])
         rdma->Init();
         rdma->TraceConnectWithoutContext("QpComplete", MakeBoundCallback(qp_finish, fct_output));
     }
-#endif
 
     // set ACK priority on hosts
     if (ack_high_prio)
@@ -997,7 +998,7 @@ schedNextTask(uint32_t node_id)
 
         // check if the task is already assigned to other servers
         auto it = std::find_if(run_state.currTask.begin(), run_state.currTask.end(), [&](auto& t) {
-            return t.has_value() && t.value().get().num == taskIndex;
+            return t.has_value() && t.value().get().num == tasks[taskIndex].num;
         });
         if (it == run_state.currTask.end()) // no duplicate
         {
