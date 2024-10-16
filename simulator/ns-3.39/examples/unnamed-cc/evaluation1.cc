@@ -1071,7 +1071,11 @@ schedNextCompute(uint32_t node_id)
         return;
     }
     auto task = run_state.currTask[node_id]->get();
-    Simulator::Schedule(task.computation, schedNextTransmit, node_id);
+    Ptr<UniformRandomVariable> uv = CreateObject<UniformRandomVariable>();
+    uv->SetAttribute("Min", DoubleValue(task.computation.GetSeconds() * 0.9));
+    uv->SetAttribute("Max", DoubleValue(task.computation.GetSeconds() * 1.1));
+    Time realComputationTime = Seconds(uv->GetValue());
+    Simulator::Schedule(realComputationTime, schedNextTransmit, node_id);
 }
 
 void
