@@ -85,16 +85,27 @@ struct Task
 
 struct RunState
 {
+    enum class State
+    {
+        IDLE,
+        COMMUNICATING,
+        COMPUTING
+    };
+
     // the task number the host is running on
     std::array<std::optional<std::reference_wrapper<Task>>, 3> currTask;
     // current iteration of the task
-    std::array<uint32_t, 3> iteration;
+    std::array<uint32_t, 3> iteration = {0, 0, 0};
     // cumulative sent bytes in total (all nodes)
-    uint64_t bytes_sent;
+    uint64_t bytes_sent = 0;
     // cumulative computation time
-    Time computation_time;
+    Time computation_time = Seconds(0);
     // runtime priority used by crux, classified by sender; lower value means higher priority
     std::array<uint32_t, 3> priority = {3, 3, 3};
+    // host state now
+    std::array<State, 3> host_state = {State::IDLE, State::IDLE, State::IDLE};
+    // the time when the host enters the current state
+    std::array<Time, 3> state_time_since = {Seconds(0), Seconds(0), Seconds(0)};
 } run_state;
 
 struct QlenDistribution
@@ -967,14 +978,18 @@ readTasks(std::string path)
 void
 schedNextTask(uint32_t node_id)
 {
-// std::string output = "";
-std::ostringstream output;
+    // std::string output = "";
+    std::ostringstream output;
     if (run_state.currTask[node_id].has_value())
     {
         // has previous task completed, remove it
         auto it = std::find_if(tasks.begin(), tasks.end(), [&](const Task& t) {
             return t.num == run_state.currTask[node_id].value().get().num;
         });
+        if (run_state.host_state[node_id] == RunState::State::COMPUTING)
+        {
+            run_state.computation_time += Simulator::Now() - run_state.state_time_since[node_id];
+        }
         output << std::fixed << std::setprecision(6) << Simulator::Now().GetSeconds()
                << "SWAPOUT node: " << node_id << " task: " << it->num
                << " Bytes sent: " << run_state.bytes_sent
@@ -985,6 +1000,7 @@ std::ostringstream output;
         }
         run_state.bytes_sent = 0;
         run_state.computation_time = Seconds(0);
+        run_state.state_time_since[node_id] = Simulator::Now();
     }
     // randomly choose a task
     if (tasks.size() <= 2) // all other tasks are occupied by other servers
@@ -1015,6 +1031,7 @@ std::ostringstream output;
            << " task: " << run_state.currTask[node_id].value().get().num;
     fout << output.str() << std::endl;
     std::cout << output.str() << std::endl;
+    run_state.iteration[node_id] = 0;
     if (runmode == RUN_MODE::CRUX) // basic priority management
     {
         Simulator::Schedule(Seconds(0), updatePriority);
@@ -1058,7 +1075,7 @@ schedNextTransmit(uint32_t node_id)
     auto appCon = clientHelper.Install(n.Get(node_id));
 
     std::cout << "Node " << node_id << " starts communication" << std::endl;
-    run_state.state = RunState::State::COMMUNICATING;
+    run_state.host_state[node_id] = RunState::State::COMMUNICATING;
     run_state.computation_time = Simulator::Now() - run_state.state_time_since[node_id];
     run_state.state_time_since[node_id] = Simulator::Now();
     appCon.Start(Seconds(0)); // i.e. now
@@ -1078,8 +1095,8 @@ schedNextCompute(uint32_t node_id)
     uv->SetAttribute("Max", DoubleValue(task.computation.GetSeconds() * 1.1));
     Time realComputationTime = Seconds(uv->GetValue());
     Simulator::Schedule(realComputationTime, schedNextTransmit, node_id);
-std::cout << "Node " << node_id << " starts computation" << std::endl;
-    run_state.state = RunState::State::COMPUTING;
+    std::cout << "Node " << node_id << " starts computation" << std::endl;
+    run_state.host_state[node_id] = RunState::State::COMPUTING;
 
     run_state.state_time_since[node_id] = Simulator::Now();
 }
@@ -1364,14 +1381,14 @@ PrintResults(std::map<uint32_t, NetDeviceContainer> ToR, uint32_t numToRs, doubl
                 power = (rxBytes * 8.0 / delay) * (qlen + bw * maxRtt * 1e-9) /
                         (bw * (bw * maxRtt * 1e-9));
             }
-// std::cout << "ToR " << i << " Port " << j << " throughput " << throughput << "
+            // std::cout << "ToR " << i << " Port " << j << " throughput " << throughput << "
             // txBytes "
-//           << txBytes << " qlen " << qlen << " time " << Simulator::Now().GetSeconds()
-//           << " normpower " << power << std::endl;
+            //           << txBytes << " qlen " << qlen << " time " << Simulator::Now().GetSeconds()
+            //           << " normpower " << power << std::endl;
         }
-// std::cout << "ToR " << i << " Total " << 0 << " throughput " << throughputTotal
-//           << " buffer " << torBuffer << " time " << Simulator::Now().GetSeconds()
-//           << std::endl;
+        // std::cout << "ToR " << i << " Total " << 0 << " throughput " << throughputTotal
+        //           << " buffer " << torBuffer << " time " << Simulator::Now().GetSeconds()
+        //           << std::endl;
     }
     Simulator::Schedule(Seconds(delay), PrintResults, ToR, numToRs, delay);
 }
@@ -1380,7 +1397,7 @@ PrintResults(std::map<uint32_t, NetDeviceContainer> ToR, uint32_t numToRs, doubl
 void
 PrintResultsFlow(std::map<uint32_t, NetDeviceContainer> Src, uint32_t numFlows, double delay)
 {
-std::vector<double> throughput;
+    std::vector<double> throughput;
     throughput.resize(numFlows);
     for (uint32_t i = 0; i < numFlows; i++) // for each src (device)
     {
@@ -1391,23 +1408,14 @@ std::vector<double> throughput;
         {
             Ptr<QbbNetDevice> nd = DynamicCast<QbbNetDevice>(Src[i].Get(j));
             txBytes += nd->getNumTxBytes();
-            run_state.bytes_sent += txBytes;
             uint64_t _qlen [[maybe_unused]] = nd->GetQueue()->GetNBytesTotal();
             double throughput = double(txBytes * 8) / delay;
             throughputTotal += throughput;
-}
+        }
         throughput[i] = throughputTotal;
-
-                    if (txBytes == 0) // computing, not transmitting
-        {
-            run_state.computation_time += Seconds(delay);
-        }
-        else
-        {
-            run_state.bytes_sent += txBytes;
-        }
+        run_state.bytes_sent += txBytes;
     }
-std::cout << std::fixed << std::setprecision(6) << Simulator::Now().GetSeconds()
+    std::cout << std::fixed << std::setprecision(6) << Simulator::Now().GetSeconds()
               << " Throughput ";
     std::cout.unsetf(std::ios::fixed);
     for (uint32_t i = 0; i < numFlows; i++)
@@ -1472,5 +1480,5 @@ updatePriority()
         run_state.priority[node] = i + 1;
     }
     std::cout << "Priority updated, new priority: 0:" << run_state.priority[0]
-<< " 1:" << run_state.priority[1] << " 2:" << run_state.priority[2] << std::endl;
+              << " 1:" << run_state.priority[1] << " 2:" << run_state.priority[2] << std::endl;
 }
