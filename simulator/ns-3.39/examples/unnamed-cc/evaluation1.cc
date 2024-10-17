@@ -18,8 +18,11 @@
 #include <cstdint>
 #include <fstream>
 #include <functional>
+#include <iomanip>
+#include <ios>
 #include <ostream>
 #include <queue>
+#include <sstream>
 #include <string>
 #include <vector>
 #undef PGO_TRAINING
@@ -964,17 +967,18 @@ readTasks(std::string path)
 void
 schedNextTask(uint32_t node_id)
 {
-    std::string output = "";
+// std::string output = "";
+std::ostringstream output;
     if (run_state.currTask[node_id].has_value())
     {
         // has previous task completed, remove it
         auto it = std::find_if(tasks.begin(), tasks.end(), [&](const Task& t) {
             return t.num == run_state.currTask[node_id].value().get().num;
         });
-        output += "SWAPOUT node: " + std::to_string(node_id) + " task: " + std::to_string(it->num) +
-                  " Bytes sent: " + std::to_string(run_state.bytes_sent) +
-                  " Computation time: " + std::to_string(run_state.computation_time.GetSeconds()) +
-                  " Time: " + std::to_string(Simulator::Now().GetSeconds()) + "\n";
+        output << std::fixed << std::setprecision(6) << Simulator::Now().GetSeconds()
+               << "SWAPOUT node: " << node_id << " task: " << it->num
+               << " Bytes sent: " << run_state.bytes_sent
+               << " Computation time: " << run_state.computation_time.GetSeconds() << std::endl;
         if (it != tasks.end())
         {
             tasks.erase(it);
@@ -1006,10 +1010,11 @@ schedNextTask(uint32_t node_id)
             break;
         }
     }
-    output += "SWAPIN node: " + std::to_string(node_id) +
-              " task: " + std::to_string(run_state.currTask[node_id].value().get().num) +
-              " time: " + std::to_string(Simulator::Now().GetSeconds());
-    fout << output << std::endl;
+    output << std::fixed << std::setprecision(6) << Simulator::Now().GetSeconds()
+           << " SWAPIN node: " << node_id
+           << " task: " << run_state.currTask[node_id].value().get().num;
+    fout << output.str() << std::endl;
+    std::cout << output.str() << std::endl;
     if (runmode == RUN_MODE::CRUX) // basic priority management
     {
         Simulator::Schedule(Seconds(0), updatePriority);
@@ -1051,6 +1056,11 @@ schedNextTransmit(uint32_t node_id)
     portNumder[node_id][node_id + 3]++;
     portNumder[node_id + 3][node_id]++;
     auto appCon = clientHelper.Install(n.Get(node_id));
+
+    std::cout << "Node " << node_id << " starts communication" << std::endl;
+    run_state.state = RunState::State::COMMUNICATING;
+    run_state.computation_time = Simulator::Now() - run_state.state_time_since[node_id];
+    run_state.state_time_since[node_id] = Simulator::Now();
     appCon.Start(Seconds(0)); // i.e. now
 }
 
@@ -1068,6 +1078,10 @@ schedNextCompute(uint32_t node_id)
     uv->SetAttribute("Max", DoubleValue(task.computation.GetSeconds() * 1.1));
     Time realComputationTime = Seconds(uv->GetValue());
     Simulator::Schedule(realComputationTime, schedNextTransmit, node_id);
+std::cout << "Node " << node_id << " starts computation" << std::endl;
+    run_state.state = RunState::State::COMPUTING;
+
+    run_state.state_time_since[node_id] = Simulator::Now();
 }
 
 void
@@ -1328,9 +1342,9 @@ PrintResults(std::map<uint32_t, NetDeviceContainer> ToR, uint32_t numToRs, doubl
 {
     for (uint32_t i = 0; i < numToRs; i++)
     {
-        double throughputTotal = 0;
-        uint64_t torBuffer = 0;
-        double power;
+        double throughputTotal [[maybe_unused]] = 0;
+        uint64_t torBuffer [[maybe_unused]] = 0;
+        double power [[maybe_unused]];
         for (uint32_t j = 0; j < ToR[i].GetN(); j++)
         {
             Ptr<QbbNetDevice> nd = DynamicCast<QbbNetDevice>(ToR[i].Get(j));
@@ -1350,13 +1364,14 @@ PrintResults(std::map<uint32_t, NetDeviceContainer> ToR, uint32_t numToRs, doubl
                 power = (rxBytes * 8.0 / delay) * (qlen + bw * maxRtt * 1e-9) /
                         (bw * (bw * maxRtt * 1e-9));
             }
-            std::cout << "ToR " << i << " Port " << j << " throughput " << throughput << " txBytes "
-                      << txBytes << " qlen " << qlen << " time " << Simulator::Now().GetSeconds()
-                      << " normpower " << power << std::endl;
+// std::cout << "ToR " << i << " Port " << j << " throughput " << throughput << "
+            // txBytes "
+//           << txBytes << " qlen " << qlen << " time " << Simulator::Now().GetSeconds()
+//           << " normpower " << power << std::endl;
         }
-        std::cout << "ToR " << i << " Total " << 0 << " throughput " << throughputTotal
-                  << " buffer " << torBuffer << " time " << Simulator::Now().GetSeconds()
-                  << std::endl;
+// std::cout << "ToR " << i << " Total " << 0 << " throughput " << throughputTotal
+//           << " buffer " << torBuffer << " time " << Simulator::Now().GetSeconds()
+//           << std::endl;
     }
     Simulator::Schedule(Seconds(delay), PrintResults, ToR, numToRs, delay);
 }
@@ -1365,6 +1380,8 @@ PrintResults(std::map<uint32_t, NetDeviceContainer> ToR, uint32_t numToRs, doubl
 void
 PrintResultsFlow(std::map<uint32_t, NetDeviceContainer> Src, uint32_t numFlows, double delay)
 {
+std::vector<double> throughput;
+    throughput.resize(numFlows);
     for (uint32_t i = 0; i < numFlows; i++) // for each src (device)
     {
         double throughputTotal = 0;
@@ -1378,14 +1395,10 @@ PrintResultsFlow(std::map<uint32_t, NetDeviceContainer> Src, uint32_t numFlows, 
             uint64_t _qlen [[maybe_unused]] = nd->GetQueue()->GetNBytesTotal();
             double throughput = double(txBytes * 8) / delay;
             throughputTotal += throughput;
-            // std::cout << "Src " << i << " Port " << j << " throughput "<< throughput << " txBytes
-            // " << txBytes << " qlen " << qlen << " time " << Simulator::Now().GetSeconds() <<
-            // std::endl;
-        }
-        std::cout << "Src " << i << " Total " << 0 << " throughput " << throughputTotal << " time "
-                  << Simulator::Now().GetSeconds() << std::endl;
+}
+        throughput[i] = throughputTotal;
 
-        if (txBytes == 0) // computing, not transmitting
+                    if (txBytes == 0) // computing, not transmitting
         {
             run_state.computation_time += Seconds(delay);
         }
@@ -1394,6 +1407,15 @@ PrintResultsFlow(std::map<uint32_t, NetDeviceContainer> Src, uint32_t numFlows, 
             run_state.bytes_sent += txBytes;
         }
     }
+std::cout << std::fixed << std::setprecision(6) << Simulator::Now().GetSeconds()
+              << " Throughput ";
+    std::cout.unsetf(std::ios::fixed);
+    for (uint32_t i = 0; i < numFlows; i++)
+    {
+        std::cout << "Src " << i << ":" << throughput[i] << " ";
+    }
+    std::cout << std::endl;
+
     Simulator::Schedule(Seconds(delay), PrintResultsFlow, Src, numFlows, delay);
 }
 
@@ -1438,16 +1460,17 @@ updatePriority()
             auto task = run_state.currTask[i]->get();
             intensity = task.computation.GetSeconds() / task.communication.GetSeconds();
         }
-        intensity_pair[i] = std::make_pair(intensity, i);
+        intensity_pair[i] = std::make_pair(intensity * -1.0, i);
     }
     // for the same intensity, keep the task already running as the highest priority
-    std::stable_sort(intensity_pair, intensity_pair + 3);
-    for (auto i = 0; i < 3; i++)
-    {
-        run_state.priority[intensity_pair[i].second] = 3 - i;
-    }
     std::cout << "Intensity: " << intensity_pair[0].first << " " << intensity_pair[1].first << " "
               << intensity_pair[2].first << std::endl;
-    std::cout << "Priority updated, new priority: " << run_state.priority[0] << " "
-              << run_state.priority[1] << " " << run_state.priority[2] << std::endl;
+    std::sort(intensity_pair, intensity_pair + 3);
+    for (auto i = 0; i < 3; i++)
+    {
+        auto node = intensity_pair[i].second;
+        run_state.priority[node] = i + 1;
+    }
+    std::cout << "Priority updated, new priority: 0:" << run_state.priority[0]
+<< " 1:" << run_state.priority[1] << " 2:" << run_state.priority[2] << std::endl;
 }
