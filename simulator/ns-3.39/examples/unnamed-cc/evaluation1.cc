@@ -996,7 +996,14 @@ schedNextTask(uint32_t node_id)
         output << std::fixed << std::setprecision(6) << Simulator::Now().GetSeconds()
                << "SWAPOUT node: " << node_id << " task: " << it->num
                << " Bytes sent: " << run_state.bytes_sent
-               << " Computation time: " << run_state.computation_time.GetSeconds() << std::endl;
+               << " Computation time: " << run_state.computation_time.GetSeconds()
+               << " Tasks remaining ";
+        // print remaining task ids
+        for (auto& t : tasks)
+        {
+            output << t.num << " ";
+        }
+        output << std::endl;
         if (it != tasks.end())
         {
             tasks.erase(it);
@@ -1011,21 +1018,15 @@ schedNextTask(uint32_t node_id)
         run_state.currTask[node_id].reset();
         return;
     }
-    while (true)
+    for (auto& task : tasks)
     {
-        // randomly pick a task
-        Ptr<UniformRandomVariable> uv = CreateObject<UniformRandomVariable>();
-        uv->SetAttribute("Min", DoubleValue(0));
-        uv->SetAttribute("Max", DoubleValue(tasks.size() - 1));
-        uint32_t taskIndex = uv->GetInteger();
-
         // check if the task is already assigned to other servers
         auto it = std::find_if(run_state.currTask.begin(), run_state.currTask.end(), [&](auto& t) {
-            return t.has_value() && t.value().get().num == tasks[taskIndex].num;
+            return t.has_value() && t.value().get().num == task.num;
         });
         if (it == run_state.currTask.end()) // no duplicate
         {
-            run_state.currTask[node_id] = tasks[taskIndex];
+            run_state.currTask[node_id] = task;
             break;
         }
     }
@@ -1052,7 +1053,7 @@ schedNextTransmit(uint32_t node_id)
         return;
     }
     auto task = run_state.currTask[node_id]->get();
-    if (run_state.iteration[node_id] == task.iteration)
+    if (run_state.iteration[node_id] >= task.iteration)
     { // task completed
         Simulator::Schedule(Seconds(0), schedNextTask, node_id);
         return;
@@ -1085,7 +1086,7 @@ schedNextTransmit(uint32_t node_id)
     output << std::fixed << std::setprecision(6) << Simulator::Now().GetSeconds();
     output.unsetf(std::ios::fixed);
     output << " COMMUNICATE Node " << node_id << " task " << task.num << " iteration "
-           << run_state.iteration[node_id] << " approx computation time "
+           << run_state.iteration[node_id] << "/" << task.iteration << " approx computation time "
            << run_state.computation_time.GetSeconds();
     std::cout << output.str() << std::endl;
     fout << output.str() << std::endl;
@@ -1114,7 +1115,8 @@ schedNextCompute(uint32_t node_id)
     output << std::fixed << std::setprecision(6) << Simulator::Now().GetSeconds();
     output.unsetf(std::ios::fixed);
     output << " COMPUTE Node " << node_id << " task " << task.num << " iteration "
-           << run_state.iteration[node_id] << " sent bytes " << run_state.bytes_sent;
+           << run_state.iteration[node_id] << "/" << task.iteration << " sent bytes "
+           << run_state.bytes_sent;
     std::cout << output.str();
     fout << output.str() << std::endl;
 }
