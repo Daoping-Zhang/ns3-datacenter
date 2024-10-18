@@ -138,7 +138,7 @@ const int TOR_NUM = 2;
 
 std::string TASK_PATH = BASE_PATH + "ml_traffic.csv";
 std::string CONF_PATH = BASE_PATH + "config.txt";
-std::string TASKSWAP_PATH = BASE_PATH + "eval1/taskswap.txt";
+std::string TASKSWAP_PATH;
 std::string fct_output_file = "fct.txt";
 std::string pfc_output_file = "pfc.txt";
 std::string qlen_mon_file;
@@ -281,14 +281,17 @@ main(int argc, char* argv[])
     if (temp == "fair")
     {
         runmode = RUN_MODE::FAIR;
+        TASKSWAP_PATH = BASE_PATH + "eval1/fair_taskswap.txt";
     }
     else if (temp == "crux")
     {
         runmode = RUN_MODE::CRUX;
+        TASKSWAP_PATH = BASE_PATH + "eval1/crux_taskswap.txt";
     }
     else if (temp == "ufcc")
     {
         runmode = RUN_MODE::UFCC;
+        TASKSWAP_PATH = BASE_PATH + "eval1/ufcc_taskswap.txt";
     }
     else
     {
@@ -1074,10 +1077,18 @@ schedNextTransmit(uint32_t node_id)
     portNumder[node_id + 3][node_id]++;
     auto appCon = clientHelper.Install(n.Get(node_id));
 
-    std::cout << "Node " << node_id << " starts communication" << std::endl;
     run_state.host_state[node_id] = RunState::State::COMMUNICATING;
-    run_state.computation_time = Simulator::Now() - run_state.state_time_since[node_id];
+    run_state.computation_time += Simulator::Now() - run_state.state_time_since[node_id];
     run_state.state_time_since[node_id] = Simulator::Now();
+
+    std::ostringstream output;
+    output << std::fixed << std::setprecision(6) << Simulator::Now().GetSeconds();
+    output.unsetf(std::ios::fixed);
+    output << " COMMUNICATE Node " << node_id << " task " << task.num << " iteration "
+           << run_state.iteration[node_id] << " approx computation time "
+           << run_state.computation_time.GetSeconds();
+    std::cout << output.str() << std::endl;
+    fout << output.str() << std::endl;
     appCon.Start(Seconds(0)); // i.e. now
 }
 
@@ -1095,10 +1106,17 @@ schedNextCompute(uint32_t node_id)
     uv->SetAttribute("Max", DoubleValue(task.computation.GetSeconds() * 1.1));
     Time realComputationTime = Seconds(uv->GetValue());
     Simulator::Schedule(realComputationTime, schedNextTransmit, node_id);
-    std::cout << "Node " << node_id << " starts computation" << std::endl;
-    run_state.host_state[node_id] = RunState::State::COMPUTING;
 
     run_state.state_time_since[node_id] = Simulator::Now();
+    run_state.host_state[node_id] = RunState::State::COMPUTING;
+
+    std::ostringstream output;
+    output << std::fixed << std::setprecision(6) << Simulator::Now().GetSeconds();
+    output.unsetf(std::ios::fixed);
+    output << " COMPUTE Node " << node_id << " task " << task.num << " iteration "
+           << run_state.iteration[node_id] << " sent bytes " << run_state.bytes_sent;
+    std::cout << output.str();
+    fout << output.str() << std::endl;
 }
 
 void
