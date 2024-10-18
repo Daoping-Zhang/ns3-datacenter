@@ -275,7 +275,6 @@ main(int argc, char* argv[])
     readTasks(TASK_PATH);
     conf.open(CONF_PATH);
     std::filesystem::create_directories(BASE_PATH + "eval1");
-    fout.open(TASKSWAP_PATH);
 
     // parse configuration
     if (temp == "fair")
@@ -298,6 +297,7 @@ main(int argc, char* argv[])
         std::cerr << "Invalid run mode" << std::endl;
         return 1;
     }
+    fout.open(TASKSWAP_PATH);
 
     switch (runmode)
     {
