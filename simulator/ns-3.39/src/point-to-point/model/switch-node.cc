@@ -138,7 +138,7 @@ SwitchNode::GetOutDev(Ptr<const Packet> p, CustomHeader& ch)
 
     uint32_t idx = EcmpHash(buf.u8, 12, m_ecmpSeed) % nexthops.size();
     // if (nexthops.size()>1){ std::cout << "selected " << idx << std::endl; }
-    idx = 0;
+    // idx = 0;
     return nexthops[idx];
 }
 

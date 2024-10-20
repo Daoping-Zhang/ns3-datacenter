@@ -2048,7 +2048,7 @@ RdmaHw::UpdateRateUfcc(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, b
             if(qp->ufcc.low_rate  >= 0.95*qp->ufcc.high_rate)
             {
                 if(qp->ufcc.arvgRtt <= qp->ufcc.minRtt +  high_rtt)
-            {
+                {
                 qp->ufcc.state_count = 0;
                 qp->ufcc.state = qp->STEADY;
                 }else if(qp->ufcc.arvgRtt > qp->ufcc.minRtt + high_rtt)
@@ -2056,14 +2056,14 @@ RdmaHw::UpdateRateUfcc(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, b
 
                     qp->ufcc.state_count = qp->ufcc.state_count+3;
                 }else
-        {
-            qp->ufcc.state_count++;
+                {
+                    qp->ufcc.state_count++;
                 }
                 if(qp->ufcc.state_count >= 5)
-            {
+                {
                     qp->m_rate = std::max(qp->ufcc.low_rate - 0.1*m_minRate,m_minRate);
                     qp->ufcc.low_rate = qp->m_rate;
-                qp->ufcc.state_count = 0;
+                    qp->ufcc.state_count = 0;
                 }
                 
             }
@@ -2139,13 +2139,9 @@ RdmaHw::UpdateRateUfcc(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, b
         {
             if(rtt <=qp->ufcc.minRtt + burst_rtt)
             {
-                if(qp->ufcc.low_rate >= 0.8*qp->ufcc.high_rate)
-                {
-                    qp->ufcc.high_rate =  (qp->m_max_rate+qp->ufcc.high_rate)/2;
-            }else
-            {
-                    qp->ufcc.high_rate = (qp->ufcc.low_rate + qp->ufcc.high_rate)/2;
-            }
+                
+                 qp->ufcc.high_rate = (qp->ufcc.low_rate + qp->ufcc.high_rate)/2;
+            
 
                 qp->ufcc.low_rate = std::max(0.99*qp->ufcc.low_rate, m_minRate);
 

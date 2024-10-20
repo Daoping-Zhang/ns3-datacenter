@@ -11,12 +11,13 @@ def generate_ml_traffic(task_id, num_tasks):
         iterations = random.randint(300, 400)
         
         # Poisson-distributed total training time (communication + computation)
-        total_time = np.random.poisson(400)
+        total_time = np.random.poisson(4)
+        per_iteration = total_time / iterations
         
         # Random communication/computation ratio
-        comm_ratio = random.uniform(0.1, 0.9)
-        comm_time = total_time * comm_ratio
-        comp_time = total_time * (1 - comm_ratio)
+        comm_ratio = random.uniform(0.3, 0.7)
+        comm_time = per_iteration * comm_ratio
+        comp_time = per_iteration * (1 - comm_ratio)
         
         # Append one line per task
         data.append([task_id + task, iterations, comm_time, comp_time])
@@ -26,7 +27,7 @@ def generate_ml_traffic(task_id, num_tasks):
     return df
 
 task_id_start = 1000  # Starting ID for tasks
-num_tasks = 5  # Number of tasks to generate
+num_tasks = 10  # Number of tasks to generate
 df_output = generate_ml_traffic(task_id_start, num_tasks)
 df_output_path = "ml_traffic.csv"
 df_output.to_csv(df_output_path, index=False)

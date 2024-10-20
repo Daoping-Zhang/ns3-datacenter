@@ -184,9 +184,9 @@ class RdmaHw : public Object
     void UpdateStateUfcwnd(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, bool us) const;
 
     void UpdateRateUfcc(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, bool us) const;
-    uint64_t low_rtt = 1000;
-    uint64_t high_rtt = 1500;
-    uint64_t burst_rtt = 6000;
+    uint64_t low_rtt = 10000;
+    uint64_t high_rtt = 15000;
+    uint64_t burst_rtt = 60000;
     
 
     /*********************
