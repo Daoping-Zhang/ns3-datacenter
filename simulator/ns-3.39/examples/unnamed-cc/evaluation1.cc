@@ -1024,7 +1024,6 @@ schedNextTask(uint32_t node_id)
                 output << t.num << " ";
             }
         }
-        output << std::endl;
 
         run_state.bytes_sent = 0;
         run_state.computation_time = Seconds(0);
@@ -1042,10 +1041,12 @@ schedNextTask(uint32_t node_id)
     if (!selected_task.has_value())
     {
         run_state.currTask[node_id].reset();
+        fout << output.str() << std::endl;
+        std::cout << output.str() << std::endl;
         return;
     }
     run_state.currTask[node_id] = selected_task.value();
-    output << std::fixed << std::setprecision(6) << Simulator::Now().GetSeconds()
+    output <<std::endl<< std::fixed << std::setprecision(6) << Simulator::Now().GetSeconds()
            << " SWAPIN node: " << node_id
            << " task: " << run_state.currTask[node_id].value().get().num;
     fout << output.str() << std::endl;
@@ -1133,7 +1134,7 @@ schedNextCompute(uint32_t node_id)
     output << " COMPUTE Node " << node_id << " task " << task.num << " iteration "
            << run_state.iteration[node_id] << "/" << task.iteration << " sent bytes "
            << run_state.bytes_sent;
-    std::cout << output.str();
+    std::cout << output.str() << std::endl;
     fout << output.str() << std::endl;
 }
 
@@ -1162,8 +1163,6 @@ qp_finish(FILE* fout, Ptr<RdmaQueuePair> q)
             (Simulator::Now() - q->startTime).GetTimeStep(),
             standalone_fct);
     fflush(fout);
-
-    std::cout << "Transmission finished" << std::endl;
 
     // remove rxQp from the receiver
     Ptr<Node> dstNode = n.Get(did);
@@ -1451,14 +1450,14 @@ PrintResultsFlow(std::map<uint32_t, NetDeviceContainer> Src, uint32_t numFlows, 
         throughput[i] = throughputTotal;
         run_state.bytes_sent += txBytes;
     }
-    std::cout << std::fixed << std::setprecision(6) << Simulator::Now().GetSeconds()
-              << " Throughput ";
-    std::cout.unsetf(std::ios::fixed);
-    for (uint32_t i = 0; i < numFlows; i++)
-    {
-        std::cout << "Src " << i << ":" << throughput[i] << " ";
-    }
-    std::cout << std::endl;
+    // std::cout << std::fixed << std::setprecision(6) << Simulator::Now().GetSeconds()
+    //           << " Throughput ";
+    // std::cout.unsetf(std::ios::fixed);
+    // for (uint32_t i = 0; i < numFlows; i++)
+    // {
+    //     std::cout << "Src " << i << ":" << throughput[i] << " ";
+    // }
+    // std::cout << std::endl;
 
     Simulator::Schedule(Seconds(delay), PrintResultsFlow, Src, numFlows, delay);
 }
