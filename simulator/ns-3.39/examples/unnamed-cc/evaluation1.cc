@@ -20,6 +20,7 @@
 #include <functional>
 #include <iomanip>
 #include <ios>
+#include <optional>
 #include <ostream>
 #include <queue>
 #include <sstream>
@@ -77,10 +78,17 @@ struct Interface
 // emulate a ML training task, first communicate and then compute
 struct Task
 {
+    enum class State
+    {
+        WAITING,
+        OCCUPIED,
+        COMPLETED
+    };
     // Task serial and number of iterations.
     int32_t num, iteration;
     // Communication and computation time in one iteration
     ns3::Time communication, computation;
+    State state = State::WAITING;
 };
 
 struct RunState
@@ -983,59 +991,67 @@ schedNextTask(uint32_t node_id)
 {
     // std::string output = "";
     std::ostringstream output;
-    if (run_state.currTask[node_id].has_value())
+    if (run_state.currTask[node_id].has_value()) // has previous task completed
     {
-        // has previous task completed, remove it
         auto it = std::find_if(tasks.begin(), tasks.end(), [&](const Task& t) {
             return t.num == run_state.currTask[node_id].value().get().num;
         });
-        if (run_state.host_state[node_id] == RunState::State::COMPUTING)
+        // has previous task completed, set it to COMPLETED
+        if (it != tasks.end())
         {
-            run_state.computation_time += Simulator::Now() - run_state.state_time_since[node_id];
+            it->state = Task::State::COMPLETED;
+        }
+        // add all computing time from nodes
+        for (auto i : {0, 1, 2})
+        {
+            if (run_state.host_state[i] == RunState::State::COMPUTING)
+            {
+                run_state.computation_time +=
+                    Simulator::Now() - run_state.state_time_since[node_id];
+                run_state.state_time_since[node_id] = Simulator::Now();
+            }
         }
         output << std::fixed << std::setprecision(6) << Simulator::Now().GetSeconds()
-               << "SWAPOUT node: " << node_id << " task: " << it->num
+               << " SWAPOUT node: " << node_id << " task: " << it->num
                << " Bytes sent: " << run_state.bytes_sent
                << " Computation time: " << run_state.computation_time.GetSeconds()
                << " Tasks remaining ";
         // print remaining task ids
         for (auto& t : tasks)
         {
-            output << t.num << " ";
+            if (t.state == Task::State::WAITING)
+            {
+                output << t.num << " ";
+            }
         }
         output << std::endl;
-        if (it != tasks.end())
-        {
-            tasks.erase(it);
-        }
+
         run_state.bytes_sent = 0;
         run_state.computation_time = Seconds(0);
         run_state.state_time_since[node_id] = Simulator::Now();
     }
-    // randomly choose a task
-    if (tasks.size() <= 2) // all other tasks are occupied by other servers
+    std::optional<std::reference_wrapper<Task>> selected_task = std::nullopt;
+    for (auto& task : tasks)
+    {
+        if (task.state == Task::State::WAITING)
+        {
+            selected_task = task;
+            break;
+        }
+    }
+    if (!selected_task.has_value())
     {
         run_state.currTask[node_id].reset();
         return;
     }
-    for (auto& task : tasks)
-    {
-        // check if the task is already assigned to other servers
-        auto it = std::find_if(run_state.currTask.begin(), run_state.currTask.end(), [&](auto& t) {
-            return t.has_value() && t.value().get().num == task.num;
-        });
-        if (it == run_state.currTask.end()) // no duplicate
-        {
-            run_state.currTask[node_id] = task;
-            break;
-        }
-    }
+    run_state.currTask[node_id] = selected_task.value();
     output << std::fixed << std::setprecision(6) << Simulator::Now().GetSeconds()
            << " SWAPIN node: " << node_id
            << " task: " << run_state.currTask[node_id].value().get().num;
     fout << output.str() << std::endl;
     std::cout << output.str() << std::endl;
     run_state.iteration[node_id] = 0;
+    selected_task->get().state = Task::State::OCCUPIED;
     if (runmode == RUN_MODE::CRUX) // basic priority management
     {
         Simulator::Schedule(Seconds(0), updatePriority);
