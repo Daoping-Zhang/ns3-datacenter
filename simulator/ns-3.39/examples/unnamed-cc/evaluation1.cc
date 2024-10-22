@@ -141,7 +141,6 @@ struct CurrInterval
 // Constants and File Paths
 const std::string BASE_PATH = "examples/unnamed-cc/";
 const std::string LINK_RATE = "100Gbps";
-const uint32_t SERVER_NUM = 6;
 const int TOR_NUM = 2;
 
 std::string TASK_PATH = BASE_PATH + "ml_traffic.csv";
@@ -163,6 +162,7 @@ bool sample_feedback = false;
 bool var_win = false;
 bool fast_react = true;
 bool enable_trace = true;
+uint32_t server_pair_num = 3;
 
 // Timing and Simulation Parameters
 double pause_time = 5.0;
@@ -279,6 +279,7 @@ main(int argc, char* argv[])
     std::ifstream conf;
     cmd.AddValue("task-file", "task file path", TASK_PATH);
     cmd.AddValue("mode", "Run mode: fair, crux, ufcc", temp);
+    cmd.AddValue("server-pair-num", "Number of server, in pairs", server_pair_num);
     cmd.Parse(argc, argv);
     readTasks(TASK_PATH);
     conf.open(CONF_PATH);
@@ -657,7 +658,7 @@ main(int argc, char* argv[])
     Config::SetDefault("ns3::QbbNetDevice::PauseTime", UintegerValue(pause_time));
     Config::SetDefault("ns3::QbbNetDevice::QcnEnabled", BooleanValue(enable_qcn));
 
-    // 6 servers, 2 ToRs
+    // default is 6 servers, 2 ToRs
     //    0     1     2               3     4     5
     //    |     |     |               |     |     |
     //    +-----+-----+               +-----+-----+
@@ -666,7 +667,7 @@ main(int argc, char* argv[])
     //       |  6  |--------------------|  7  |
     //       +-----+                    +-----+
     // create nodes and ToRs
-    for (uint32_t i = 0; i < SERVER_NUM; i++)
+    for (uint32_t i = 0; i < server_pair_num * 2; i++)
     {
         Ptr<Node> node = CreateObject<Node>();
         n.Add(node);
@@ -692,8 +693,8 @@ main(int argc, char* argv[])
     internet.SetRoutingHelper(globalRoutingHelper);
 
     // assign ip
-    serverAddress.resize(SERVER_NUM);
-    for (auto i = 0; i < SERVER_NUM; i++)
+    serverAddress.resize(server_pair_num * 2);
+    for (auto i = 0; i < server_pair_num * 2; i++)
     {
         serverAddress[i] = node_id_to_ip(i);
     }
@@ -828,7 +829,7 @@ main(int argc, char* argv[])
 
     FILE* fct_output = fopen(fct_output_file.c_str(), "w");
     // install rdma driver to nodes
-    for (auto i = 0; i < SERVER_NUM; i++)
+    for (auto i = 0; i < server_pair_num * 2; i++)
     {
         auto rdmaHw = CreateObject<RdmaHw>();
         rdmaHw->SetAttribute("ClampTargetRate", BooleanValue(clamp_target_rate));
@@ -878,9 +879,9 @@ main(int argc, char* argv[])
     // get BDP and delay
     maxRtt = maxBdp = 0;
     uint64_t minRtt = 1e9;
-    for (auto i = 0; i < SERVER_NUM; i++)
+    for (auto i = 0; i < server_pair_num * 2; i++)
     {
-        for (auto j = 0; j < SERVER_NUM; j++)
+        for (auto j = 0; j < server_pair_num * 2; j++)
         {
             if (i == j)
             {
@@ -928,9 +929,9 @@ main(int argc, char* argv[])
     Time interPacketInterval = Seconds(0.0000005 / 2);
 
     // maintain port number for each host
-    for (auto i = 0; i < SERVER_NUM; i++)
+    for (auto i = 0; i < server_pair_num * 2; i++)
     {
-        for (auto j = 0; j < SERVER_NUM; j++)
+        for (auto j = 0; j < server_pair_num * 2; j++)
         {
             portNumder[i][j] = 10000;
         }
@@ -1046,7 +1047,8 @@ schedNextTask(uint32_t node_id)
         return;
     }
     run_state.currTask[node_id] = selected_task.value();
-    output <<std::endl<< std::fixed << std::setprecision(6) << Simulator::Now().GetSeconds()
+    output << std::endl
+           << std::fixed << std::setprecision(6) << Simulator::Now().GetSeconds()
            << " SWAPIN node: " << node_id
            << " task: " << run_state.currTask[node_id].value().get().num;
     fout << output.str() << std::endl;
