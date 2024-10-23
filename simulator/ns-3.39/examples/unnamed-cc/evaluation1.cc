@@ -101,19 +101,19 @@ struct RunState
     };
 
     // the task number the host is running on
-    std::array<std::optional<std::reference_wrapper<Task>>, 3> currTask;
+    std::vector<std::optional<std::reference_wrapper<Task>>> currTask;
     // current iteration of the task
-    std::array<uint32_t, 3> iteration = {0, 0, 0};
+    std::vector<uint32_t> iteration;
     // cumulative sent bytes in total (all nodes)
     uint64_t bytes_sent = 0;
     // cumulative computation time
     Time computation_time = Seconds(0);
     // runtime priority used by crux, classified by sender; lower value means higher priority
-    std::array<uint32_t, 3> priority = {3, 3, 3};
+    std::vector<uint32_t> priority;
     // host state now
-    std::array<State, 3> host_state = {State::IDLE, State::IDLE, State::IDLE};
+    std::vector<State> host_state;
     // the time when the host enters the current state
-    std::array<Time, 3> state_time_since = {Seconds(0), Seconds(0), Seconds(0)};
+    std::vector<Time> state_time_since;
 } run_state;
 
 struct QlenDistribution
@@ -286,6 +286,12 @@ main(int argc, char* argv[])
     std::filesystem::create_directories(BASE_PATH + "eval1");
 
     // parse configuration
+    run_state.currTask.resize(server_pair_num, std::nullopt);
+    run_state.iteration.resize(server_pair_num, 0);
+    run_state.priority.resize(server_pair_num, 7);
+    run_state.host_state.resize(server_pair_num, RunState::State::IDLE);
+    run_state.state_time_since.resize(server_pair_num, Seconds(0));
+
     if (temp == "fair")
     {
         runmode = RUN_MODE::FAIR;
@@ -659,6 +665,8 @@ main(int argc, char* argv[])
     Config::SetDefault("ns3::QbbNetDevice::QcnEnabled", BooleanValue(enable_qcn));
 
     // default is 6 servers, 2 ToRs
+    // first ToR: server_pair_num*2, connects 0~server_pair_num-1
+    // second ToR: server_pair_num*2+1, connects server*pair_num~server*pair_num*2-1
     //    0     1     2               3     4     5
     //    |     |     |               |     |     |
     //    +-----+-----+               +-----+-----+
@@ -776,13 +784,19 @@ main(int argc, char* argv[])
             "QbbPfc",
             MakeBoundCallback(&get_pfc, pfc_file, DynamicCast<QbbNetDevice>(d.Get(1))));
     };
-    insertLink(0, 6);
-    insertLink(1, 6);
-    insertLink(2, 6);
-    insertLink(3, 7);
-    insertLink(4, 7);
-    insertLink(5, 7);
-    insertLink(6, 7);
+    // insertLink(0, 6);
+    // insertLink(1, 6);
+    // insertLink(2, 6);
+    // insertLink(3, 7);
+    // insertLink(4, 7);
+    // insertLink(5, 7);
+    // insertLink(6, 7);
+    for (int i = 0; i < server_pair_num * 2; i++)
+    {
+        auto dst = server_pair_num * 2 + (i / server_pair_num);
+        insertLink(i, dst);
+    }
+    insertLink(server_pair_num * 2, server_pair_num * 2 + 1);
 
     nic_rate = get_nic_rate(n);
     auto setupSwitch = [&](int switch_no) {
@@ -824,8 +838,12 @@ main(int argc, char* argv[])
         sw->m_mmu->SetEgressLosslessPool(buffer_size * 1024 * 1024);
         sw->m_mmu->node_id = sw->GetId();
     };
-    setupSwitch(6);
-    setupSwitch(7);
+    // setupSwitch(6);
+    // setupSwitch(7);
+    for (int i = 0; i < TOR_NUM; i++)
+    {
+        setupSwitch(server_pair_num * 2 + i);
+    }
 
     FILE* fct_output = fopen(fct_output_file.c_str(), "w");
     // install rdma driver to nodes
@@ -921,8 +939,12 @@ main(int argc, char* argv[])
         sw->SetAttribute("MaxRtt", UintegerValue(maxRtt));
         sw->SetAttribute("PowerEnabled", BooleanValue(1));
     };
-    setupSwitchCC(6);
-    setupSwitchCC(7);
+    // setupSwitchCC(6);
+    // setupSwitchCC(7);
+    for (int i = 0; i < TOR_NUM; i++)
+    {
+        setupSwitchCC(server_pair_num * 2 + i);
+    }
 
     Ipv4GlobalRoutingHelper::PopulateRoutingTables();
 
@@ -937,13 +959,17 @@ main(int argc, char* argv[])
         }
     }
 
-    Simulator::Schedule(Seconds(0), schedNextTask, 0);
-    Simulator::Schedule(Seconds(0.003), schedNextTask, 1);
-    Simulator::Schedule(Seconds(0.006), schedNextTask, 2);
+    // Simulator::Schedule(Seconds(0), schedNextTask, 0);
+    // Simulator::Schedule(Seconds(0.003), schedNextTask, 1);
+    // Simulator::Schedule(Seconds(0.006), schedNextTask, 2);
+    for (int i = 0; i < server_pair_num; i++)
+    {
+        Simulator::Schedule(Seconds(0.001 * i), schedNextTask, i);
+    }
     Simulator::Schedule(Seconds(50 * maxRtt * 1e-9),
                         PrintResultsFlow,
                         sourceNodes,
-                        3,
+                        server_pair_num,
                         50 * maxRtt * 1e-9);
     Simulator::Schedule(Seconds(50 * maxRtt * 1e-9), PrintResults, switchUp, 2, 50 * maxRtt * 1e-9);
 
@@ -1003,7 +1029,7 @@ schedNextTask(uint32_t node_id)
             it->state = Task::State::COMPLETED;
         }
         // add all computing time from nodes
-        for (auto i : {0, 1, 2})
+        for (int i = 0; i < server_pair_num; i++)
         {
             if (run_state.host_state[i] == RunState::State::COMPUTING)
             {
@@ -1086,15 +1112,17 @@ schedNextTransmit(uint32_t node_id)
     auto clientHelper = RdmaClientHelper(
         run_state.priority[node_id], // priority group, 3 by default
         serverAddress[node_id],
-        serverAddress[node_id + 3], // destination is fixed to 0-3, 1-4, 2-5
-        portNumder[node_id][node_id + 3],
-        portNumder[node_id + 3][node_id],
+        serverAddress[node_id + server_pair_num], // destination is fixed to 0-3, 1-4, 2-5
+        portNumder[node_id][node_id + server_pair_num],
+        portNumder[node_id + server_pair_num][node_id],
         flowSize,
-        has_win ? (global_t == 1 ? maxBdp : pairBdp[n.Get(node_id)][n.Get(node_id + 3)]) : 0,
-        global_t == 1 ? maxRtt : pairRtt[node_id][node_id + 3],
+        has_win
+            ? (global_t == 1 ? maxBdp : pairBdp[n.Get(node_id)][n.Get(node_id + server_pair_num)])
+            : 0,
+        global_t == 1 ? maxRtt : pairRtt[node_id][node_id + server_pair_num],
         Simulator::GetMaximumSimulationTime());
-    portNumder[node_id][node_id + 3]++;
-    portNumder[node_id + 3][node_id]++;
+    portNumder[node_id][node_id + server_pair_num]++;
+    portNumder[node_id + server_pair_num][node_id]++;
     auto appCon = clientHelper.Install(n.Get(node_id));
 
     run_state.host_state[node_id] = RunState::State::COMMUNICATING;
@@ -1452,14 +1480,14 @@ PrintResultsFlow(std::map<uint32_t, NetDeviceContainer> Src, uint32_t numFlows, 
         throughput[i] = throughputTotal;
         run_state.bytes_sent += txBytes;
     }
-    // std::cout << std::fixed << std::setprecision(6) << Simulator::Now().GetSeconds()
-    //           << " Throughput ";
-    // std::cout.unsetf(std::ios::fixed);
-    // for (uint32_t i = 0; i < numFlows; i++)
-    // {
-    //     std::cout << "Src " << i << ":" << throughput[i] << " ";
-    // }
-    // std::cout << std::endl;
+    std::cout << std::fixed << std::setprecision(6) << Simulator::Now().GetSeconds()
+              << " Throughput ";
+    std::cout.unsetf(std::ios::fixed);
+    for (uint32_t i = 0; i < numFlows; i++)
+    {
+        std::cout << "Src " << i << ":" << throughput[i] << " ";
+    }
+    std::cout << std::endl;
 
     Simulator::Schedule(Seconds(delay), PrintResultsFlow, Src, numFlows, delay);
 }
@@ -1492,8 +1520,10 @@ ip_to_node_id(Ipv4Address ip)
 void
 updatePriority()
 {
-    std::pair<double, uint32_t> intensity_pair[3];
-    for (auto i = 0; i < 3; i++)
+    // std::pair<double, uint32_t> intensity_pair[3];
+    std::vector<std::pair<double, uint32_t>> intensity_pair;
+    intensity_pair.resize(server_pair_num);
+    for (auto i = 0; i < server_pair_num; i++)
     {
         double intensity;
         if (!run_state.currTask[i].has_value())
@@ -1508,14 +1538,25 @@ updatePriority()
         intensity_pair[i] = std::make_pair(intensity * -1.0, i);
     }
     // for the same intensity, keep the task already running as the highest priority
-    std::cout << "Intensity: " << intensity_pair[0].first << " " << intensity_pair[1].first << " "
-              << intensity_pair[2].first << std::endl;
-    std::sort(intensity_pair, intensity_pair + 3);
-    for (auto i = 0; i < 3; i++)
+    // std::cout << "Intensity: " << intensity_pair[0].first << " " << intensity_pair[1].first << "
+    // "
+    //           << intensity_pair[2].first << std::endl;
+    std::cout << "Intensity: ";
+    for (int i = 0; i < server_pair_num; i++)
+    {
+        std::cout << intensity_pair[i].first << " ";
+    }
+    std::cout << std::endl;
+    std::sort(intensity_pair.begin(), intensity_pair.end());
+    for (auto i = 0; i < server_pair_num; i++)
     {
         auto node = intensity_pair[i].second;
         run_state.priority[node] = i + 1;
     }
-    std::cout << "Priority updated, new priority: 0:" << run_state.priority[0]
-              << " 1:" << run_state.priority[1] << " 2:" << run_state.priority[2] << std::endl;
+    std::cout << "Priority updated, new priority: ";
+    for (int i = 0; i < server_pair_num; i++)
+    {
+        std::cout << i << ":" << run_state.priority[i] << " ";
+    }
+    std::cout << std::endl;
 }
